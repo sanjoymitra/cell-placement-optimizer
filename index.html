@@ -212,7 +212,7 @@ input[type=number]:focus{border-color:#10b981}
     <div class="flex items-center gap-0 w-full min-w-[300px] sm:min-w-0 sm:max-w-2xl">
       <div class="flex flex-col items-center gap-2 step-indicator" onclick="tryGoToStep(1)" id="step-ind-1"><div class="step-dot active"><i class="fas fa-server text-sm"></i></div><span class="text-xs font-medium accent step-text">Current Footprint</span></div>
       <div class="step-line" id="line-1"></div>
-      <div class="flex flex-col items-center gap-2 step-indicator" onclick="tryGoToStep(2)" id="step-ind-2"><div class="step-dot"><i class="fas fa-users text-sm"></i></div><span class="text-xs font-medium text-slate-500 step-text">Customers</span></div>
+      <div class="flex flex-col items-center gap-2 step-indicator" onclick="tryGoToStep(2)" id="step-ind-2"><div class="step-dot"><i class="fas fa-network-wired text-sm"></i></div><span class="text-xs font-medium text-slate-500 step-text">Endpoints</span></div>
       <div class="step-line" id="line-2"></div>
       <div class="flex flex-col items-center gap-2 step-indicator" onclick="tryGoToStep(3)" id="step-ind-3"><div class="step-dot"><i class="fas fa-sliders text-sm"></i></div><span class="text-xs font-medium text-slate-500 step-text">SLA Config</span></div>
       <div class="step-line" id="line-3"></div>
@@ -234,7 +234,7 @@ input[type=number]:focus{border-color:#10b981}
         <div id="fp-map" class="w-full h-full"></div>
         <div class="absolute top-4 right-4 glass rounded-lg p-3 z-[1000] space-y-2">
           <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Existing Cell</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Customer</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Endpoint</div>
           <div class="legend-item"><div class="legend-diamond" style="background:#3b82f6"></div>Recommended</div>
         </div>
       </div>
@@ -274,20 +274,20 @@ input[type=number]:focus{border-color:#10b981}
         </div>
       </div>
     </div>
-    <div class="flex justify-end mt-8"><button class="btn-primary px-6 py-3 rounded-xl" onclick="goToStep(2)">Next: Add Customers <i class="fas fa-arrow-right ml-2"></i></button></div>
+    <div class="flex justify-end mt-8"><button class="btn-primary px-6 py-3 rounded-xl" onclick="goToStep(2)">Next: Add Endpoints <i class="fas fa-arrow-right ml-2"></i></button></div>
   </div>
 
   <div id="step-2" class="step-content hidden fade-in">
     <div class="flex items-start sm:items-center justify-between mb-8 relative">
        <button class="btn-ghost px-3 py-2 rounded-lg absolute left-0 z-10" onclick="goToStep(1)"><i class="fas fa-arrow-left"></i><span class="hidden sm:inline ml-2">Back</span></button>
        <div class="text-center w-full">
-          <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Customer Locations</h2>
-          <p class="text-xs sm:text-sm text-slate-400">Add the locations of your target customers</p>
+          <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Endpoint Locations</h2>
+          <p class="text-xs sm:text-sm text-slate-400">Add the locations of your target endpoints</p>
        </div>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="glass rounded-2xl overflow-hidden">
-        <div class="px-5 py-3 border-b border-slate-700/50 flex items-center justify-between flex-wrap gap-2"><h3 class="font-semibold text-white">Customer Map</h3><div class="flex gap-3 text-xs flex-wrap"><div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Existing</div><div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Customer</div></div></div>
+        <div class="px-5 py-3 border-b border-slate-700/50 flex items-center justify-between flex-wrap gap-2"><h3 class="font-semibold text-white">Endpoint Map</h3><div class="flex gap-3 text-xs flex-wrap"><div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Existing</div><div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Endpoint</div></div></div>
         <div class="h-[300px] sm:h-[420px] relative"><div id="cust-map" class="w-full h-full"></div><button class="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] btn-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2" id="click-place-btn" onclick="toggleClickPlace()"><i class="fas fa-map-marker-alt"></i> <span id="click-place-text">Click to Place on Map</span></button></div>
       </div>
       <div class="space-y-4">
@@ -296,7 +296,7 @@ input[type=number]:focus{border-color:#10b981}
           <div class="relative mb-3"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i><input type="text" class="search-input text-sm" placeholder="Search cities or countries..." id="cust-search" oninput="filterCustList()"></div>
           <div id="cust-source-list" class="max-h-[200px] overflow-y-auto space-y-1 pr-1"></div>
         </div>
-        <div class="glass rounded-2xl p-5"><h3 class="font-semibold text-white mb-3">Customers (<span id="cust-count">0</span>)</h3><div id="cust-list" class="space-y-2 max-h-[200px] overflow-y-auto pr-1"></div></div>
+        <div class="glass rounded-2xl p-5"><h3 class="font-semibold text-white mb-3">Endpoints (<span id="cust-count">0</span>)</h3><div id="cust-list" class="space-y-2 max-h-[200px] overflow-y-auto pr-1"></div></div>
       </div>
     </div>
     <div class="flex justify-between mt-8"><button class="btn-ghost px-6 py-3" onclick="goToStep(1)"><i class="fas fa-arrow-left mr-2"></i>Back</button><button class="btn-primary px-6 py-3 rounded-xl" onclick="goToStep(3)">Next: Configure SLA <i class="fas fa-arrow-right ml-2"></i></button></div>
@@ -326,11 +326,11 @@ input[type=number]:focus{border-color:#10b981}
         <h3 class="text-sm font-semibold text-slate-400 mb-4 uppercase tracking-wider">SLA Mode</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="mode-card selected" onclick="setSLAMode('global')" id="sla-global-card"><div class="mode-icon"><i class="fas fa-globe"></i></div><div><div class="font-semibold text-white">Global SLA</div><div class="text-xs text-slate-400">One threshold for all</div></div></div>
-          <div class="mode-card" onclick="setSLAMode('per-customer')" id="sla-per-card"><div class="mode-icon"><i class="fas fa-cogs"></i></div><div><div class="font-semibold text-white">Per-Customer SLA</div><div class="text-xs text-slate-400">Different per customer</div></div></div>
+          <div class="mode-card" onclick="setSLAMode('per-customer')" id="sla-per-card"><div class="mode-icon"><i class="fas fa-cogs"></i></div><div><div class="font-semibold text-white">Per-Endpoint SLA</div><div class="text-xs text-slate-400">Different per endpoint</div></div></div>
         </div>
       </div>
       <div id="sla-global-section" class="glass rounded-2xl p-6"><h3 class="text-sm font-semibold text-slate-400 mb-4 uppercase tracking-wider">Global Latency Threshold</h3><div class="flex items-center gap-3"><input type="number" id="global-sla-input" value="150" min="1" class="text-lg font-mono"><span class="text-slate-400 font-medium">ms</span></div></div>
-      <div id="sla-per-section" class="glass rounded-2xl p-6 hidden"><h3 class="text-sm font-semibold text-slate-400 mb-4 uppercase tracking-wider">Custom SLA per Customer</h3><div id="sla-per-list" class="space-y-3"></div></div>
+      <div id="sla-per-section" class="glass rounded-2xl p-6 hidden"><h3 class="text-sm font-semibold text-slate-400 mb-4 uppercase tracking-wider">Custom SLA per Endpoint</h3><div id="sla-per-list" class="space-y-3"></div></div>
     </div>
     <div class="flex justify-between mt-8 max-w-2xl mx-auto"><button class="btn-ghost px-6 py-3" onclick="goToStep(2)"><i class="fas fa-arrow-left mr-2"></i>Back</button><button class="btn-primary px-6 py-3 rounded-xl" onclick="analyzeCoverage()">Analyze Coverage <i class="fas fa-chart-line ml-2"></i></button></div>
   </div>
@@ -344,7 +344,7 @@ input[type=number]:focus{border-color:#10b981}
        </div>
     </div>
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-8">
-      <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Customers</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Endpoints</div></div>
       <div class="stat-card"><div class="stat-value text-emerald-400" id="stat-covered">0</div><div class="stat-label">Already Covered</div></div>
       <div class="stat-card"><div class="stat-value text-amber-400" id="stat-pending">0</div><div class="stat-label">Pending Coverage</div></div>
       <div class="stat-card"><div class="stat-value text-blue-400" id="stat-new-cells">0</div><div class="stat-label">New Cells Needed</div></div>
@@ -360,7 +360,7 @@ input[type=number]:focus{border-color:#10b981}
       <div class="result-card"><div class="flex items-center gap-3 mb-4"><div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center"><i class="fas fa-clock text-amber-400"></i></div><h3 class="font-semibold text-white">Pending Coverage</h3></div><div id="dash-pending-list" class="space-y-2"></div></div>
       <div class="result-card" id="impossible-card"><div class="flex items-center gap-3 mb-4"><div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center"><i class="fas fa-ban text-red-400"></i></div><h3 class="font-semibold text-white">Impossible SLA</h3></div><div id="dash-impossible-list" class="space-y-2"></div></div>
     </div>
-    <div id="latency-explorer" class="glass rounded-2xl p-6 mb-8 hidden"><div class="flex items-center gap-3 mb-6"><div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center"><i class="fas fa-microscope text-purple-400"></i></div><div><h3 class="font-semibold text-white text-lg">Latency Explorer</h3><p class="text-xs text-slate-400">Top candidate cells for each uncovered customer (including existing ones)</p></div></div><div id="explorer-list" class="space-y-5"></div></div>
+    <div id="latency-explorer" class="glass rounded-2xl p-6 mb-8 hidden"><div class="flex items-center gap-3 mb-6"><div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center"><i class="fas fa-microscope text-purple-400"></i></div><div><h3 class="font-semibold text-white text-lg">Latency Explorer</h3><p class="text-xs text-slate-400">Top candidate cells for each uncovered endpoint (including existing ones)</p></div></div><div id="explorer-list" class="space-y-5"></div></div>
     <div class="glass rounded-2xl p-6 mb-8"><div class="flex items-center gap-3 mb-6"><div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center"><i class="fas fa-lightbulb text-blue-400"></i></div><h3 class="font-semibold text-white text-lg">Recommended New Cells</h3></div><div id="dash-recommendations" class="space-y-4"></div></div>
     <div class="flex justify-between"><button class="btn-ghost px-6 py-3" onclick="goToStep(3)"><i class="fas fa-arrow-left mr-2"></i>Back</button><button class="btn-secondary px-6 py-3 rounded-xl" onclick="goToStep(1)"><i class="fas fa-redo mr-2"></i>Start Over</button></div>
   </div>
@@ -374,16 +374,26 @@ input[type=number]:focus{border-color:#10b981}
 <div class="help-backdrop" id="help-backdrop" onclick="closeHelp()"></div>
 <aside class="help-drawer" id="help-drawer" aria-label="User Guide">
   <div class="help-header"><h2><i class="fas fa-book-open text-emerald-400"></i> User Guide</h2><button class="help-close" onclick="closeHelp()" aria-label="Close guide"><i class="fas fa-times"></i></button></div>
-  <div class="help-toc"><div class="help-toc-title">Jump to section</div><div class="help-toc-list"><a class="help-toc-link" onclick="scrollToSection('intro')">📖 Overview</a><a class="help-toc-link" onclick="scrollToSection('concepts')">💡 Key Concepts</a><a class="help-toc-link" onclick="scrollToSection('step1')">Step 1: Current Footprint</a><a class="help-toc-link" onclick="scrollToSection('cost')">💰 Cost Calculator</a><a class="help-toc-link" onclick="scrollToSection('step2')">Step 2: Customers</a><a class="help-toc-link" onclick="scrollToSection('step3')">Step 3: SLA Config</a><a class="help-toc-link" onclick="scrollToSection('step4')">Step 4: Analysis</a><a class="help-toc-link" onclick="scrollToSection('underhood')">🔧 How It Works</a></div></div>
+  <div class="help-toc"><div class="help-toc-title">Jump to section</div><div class="help-toc-list"><a class="help-toc-link" onclick="scrollToSection('intro')">📖 Overview</a><a class="help-toc-link" onclick="scrollToSection('concepts')">💡 Key Concepts</a><a class="help-toc-link" onclick="scrollToSection('step1')">Step 1: Current Footprint</a><a class="help-toc-link" onclick="scrollToSection('cost')">💰 Cost Calculator</a><a class="help-toc-link" onclick="scrollToSection('step2')">Step 2: Endpoints</a><a class="help-toc-link" onclick="scrollToSection('step3')">Step 3: SLA Config</a><a class="help-toc-link" onclick="scrollToSection('step4')">Step 4: Analysis</a><a class="help-toc-link" onclick="scrollToSection('underhood')">🔧 How It Works</a></div></div>
   <div class="help-body" id="help-body">
-    <section class="help-section" id="intro"><h3><i class="fas fa-book-open text-emerald-400"></i> What Is This Tool?</h3><p>This tool helps you figure out <strong>where to place your infrastructure ("cells")</strong> around the world so that your customers get fast, reliable connections.</p><p>You tell the tool:</p><ul><li>Where your <em>existing cells</em> are today</li><li>Where your <em>customers</em> are located</li><li>What <em>latency</em> (in milliseconds) you promised them in your SLA</li><li>Optionally, how much your current cells <em>cost</em> per month</li></ul><p>The tool then uses realistic distance parameters and a 32x32 AWS latency matrix to recommend exactly where to deploy new cells — optimizing to strictly meet your SLA for the lowest possible cost.</p></section>
-    <section class="help-section" id="concepts"><h3><i class="fas fa-lightbulb text-amber-400"></i> Key Concepts</h3><h4>Cell</h4><p>A server or piece of infrastructure you deploy in an AWS data center.</p><h4>Customer</h4><p>A user, office, or business that needs to connect to your cell.</p><h4>SLA (Service Level Agreement)</h4><p>The maximum latency (in milliseconds) you've promised your customers.</p><h4>Latency</h4><p>The round-trip time (in milliseconds) for data to travel from your cell to your customer and back.</p></section>
+    <section class="help-section" id="intro"><h3><i class="fas fa-book-open text-emerald-400"></i> What Is This Tool?</h3><p>This tool helps you figure out <strong>where to place your infrastructure ("cells")</strong> around the world so that your endpoints get fast, reliable connections.</p><p>You tell the tool:</p><ul><li>Where your <em>existing cells</em> are today</li><li>Where your <em>endpoints</em> are located</li><li>What <em>latency</em> (in milliseconds) you promised them in your SLA</li><li>Optionally, how much your current cells <em>cost</em> per month</li></ul><p>The tool then uses realistic distance parameters and a 32x32 AWS latency matrix to recommend exactly where to deploy new cells — optimizing to strictly meet your SLA for the lowest possible cost.</p></section>
+    <section class="help-section" id="concepts"><h3><i class="fas fa-lightbulb text-amber-400"></i> Key Concepts</h3><h4>Cell</h4><p>A server or piece of infrastructure you deploy in an AWS data center.</p><h4>Endpoint</h4><p>An integration partner, service consumer, or client application that needs to connect to your cell.</p><h4>SLA (Service Level Agreement)</h4><p>The maximum latency (in milliseconds) you've promised your endpoints.</p><h4>Latency</h4><p>The round-trip time (in milliseconds) for data to travel from your cell to your endpoint and back.</p></section>
     <section class="help-section" id="step1"><h3><span class="step-num">1</span> Current Footprint</h3><p>Tell the tool where you <strong>already</strong> have cells deployed. This is optional.</p><p>Use <strong>List View</strong> to browse regions by continent, or <strong>Map View</strong> to visualize your selections.</p><p>Below the cell selection, you'll find the <strong>Infrastructure Cost Profile</strong> accordion — see the next section for details.</p></section>
     <section class="help-section" id="cost"><h3><i class="fas fa-dollar-sign text-amber-400"></i> Cost Calculator</h3><p>The cost calculator is <strong>optional but powerful</strong>. It lets you estimate the monthly OPEX impact of deploying new cells.</p><h4>The "Hidden Global Index"</h4><p>The tool has a hardcoded <strong>AWS Regional Price Index</strong> anchored to <strong>US East (N. Virginia) = 1.00x</strong>. Every other region is priced relative to it:</p><div class="help-index-grid"><div class="help-index-row"><span class="region">US East (Virginia)</span><span class="idx discount">1.00x</span></div><div class="help-index-row"><span class="region">Europe (Paris)</span><span class="idx parity">1.10x</span></div><div class="help-index-row"><span class="region">Asia Pacific (Tokyo)</span><span class="idx premium">1.25x</span></div><div class="help-index-row"><span class="region">South America (São Paulo)</span><span class="idx premium">1.50x</span></div><div class="help-index-row"><span class="region">Africa (Cape Town)</span><span class="idx premium">1.30x</span></div><div class="help-index-row"><span class="region">Middle East (Dubai)</span><span class="idx premium">1.25x</span></div></div><h4>Reverse-Engineering the Global Base</h4><p>When you input a cost for Paris ($2,674), the tool knows Paris is 1.10x. It <strong>reverse-engineers</strong> the normalized base:</p><div class="help-formula">$2,674 ÷ 1.10 = <strong>$2,430</strong> (True Global Base)</div><h4>Blended vs. Specific Baseline</h4><ul><li><strong>Blended:</strong> Averages reverse-engineered base costs from all inputted cells.</li><li><strong>Specific:</strong> Anchors to one specific cell of your choice.</li></ul></section>
-    <section class="help-section" id="step2"><h3><span class="step-num">2</span> Customer Locations</h3><p>Add customers via the <strong>AWS Regions</strong> tab or <strong>World Cities</strong> tab. You can also click anywhere on the map to snap to the nearest major city.</p></section>
-    <section class="help-section" id="step3"><h3><span class="step-num">3</span> SLA Configuration</h3><h4>Latency Estimation</h4><p>Choose how the tool calculates latency between your infrastructure and end users:</p><ul><li><b>Naive Mode:</b> Uses a simplified "proxy" approach. If a customer is in a non-AWS city, the tool finds the geographically closest AWS region to them and uses the known AWS backbone latency from your cell to that proxy region. It ignores exact fiber distances and local internet infrastructure quality.</li><li><b>Realistic Mode</b> (recommended) introduces an intelligent hybrid distance model:<ul><li><b>Direct Distance Model:</b> For non-AWS locations (like world cities), the matrix is bypassed in favor of a direct Haversine formula distance calculation combined with a 0.012 ms/km fiber speed penalty.</li><li><b>Infrastructure tax:</b> Adds penalty latency based on the tier of the city (Tier 1: +5ms · Tier 2: +20ms · Tier 3: +40ms · Tier 4: +60ms).</li></ul></li></ul></section>
-    <section class="help-section" id="step4"><h3><span class="step-num">4</span> Coverage Analysis</h3><p>The dashboard shows your total coverage, pending coverage, number of new cells needed, and estimated monthly OPEX.</p><p>You can also use the <b>Latency Explorer</b> to debug exactly why a cell passed or failed for a given customer.</p></section>
-    <section class="help-section" id="underhood"><h3><i class="fas fa-cogs text-purple-400"></i> How It Works Under the Hood</h3><h4>Cost-Effective Coverage Algorithm</h4><p>The tool strictly treats the SLA as a <b>pass/fail gate</b>. For each candidate AWS region, the tool calculates a <b>Cost Efficiency Score</b>:</p><div class="help-formula">Score = Region_Cost ÷ Customers_Covered</div><p>Lower scores win. The algorithm iteratively picks the cheapest combination of regions to get 100% of your un-covered customers into the "Pass" state.</p><h4>Direct Distance vs AWS Backbone</h4><p>When computing latency, the tool checks the entity type of both endpoints:</p><ul><li><b>AWS to AWS:</b> Uses a hardcoded 32x32 ping matrix representing the true latency of the AWS global backbone.</li><li><b>AWS to City (Naive Mode):</b> Finds the nearest AWS region to the target city and uses the 32x32 backbone matrix latency directly to that proxy region.</li><li><b>AWS to City (Realistic Mode):</b> Defaults to the Direct Distance Model. It calculates the exact Haversine geographic distance between the data center and the city coordinates, multiplies it by 0.012 ms per kilometer, and adds a last-mile infrastructure tier tax.</li></ul><div class="help-callout success"><div class="callout-title"><i class="fas fa-heart text-emerald-400"></i> That's it!</div>Close this guide and start planning your next cell deployment.</div></section>
+    <section class="help-section" id="step2"><h3><span class="step-num">2</span> Endpoint Locations</h3><p>Add endpoints via the <strong>AWS Regions</strong> tab or <strong>World Cities</strong> tab. You can also click anywhere on the map to snap to the nearest major city.</p></section>
+    <section class="help-section" id="step3"><h3><span class="step-num">3</span> SLA Configuration</h3><h4>Latency Estimation</h4><p>Choose how the tool calculates latency between your infrastructure and end users:</p><ul><li><b>Naive Mode:</b> Uses a simplified "proxy" approach. If an endpoint is in a non-AWS city, the tool finds the geographically closest AWS region to them and uses the known AWS backbone latency from your cell to that proxy region. It ignores exact fiber distances and local internet infrastructure quality.</li><li><b>Realistic Mode</b> (recommended) introduces an intelligent hybrid distance model:<ul><li><b>Direct Distance Model:</b> For non-AWS locations (like world cities), the matrix is bypassed in favor of a direct Haversine formula distance calculation combined with a 0.012 ms/km fiber speed penalty.</li><li><b>Infrastructure tax:</b> Adds penalty latency based on the tier of the city (Tier 1: +5ms · Tier 2: +20ms · Tier 3: +40ms · Tier 4: +60ms).</li></ul></li></ul></section>
+    <section class="help-section" id="step4"><h3><span class="step-num">4</span> Coverage Analysis</h3><p>The dashboard shows your total coverage, pending coverage, number of new cells needed, and estimated monthly OPEX.</p><p>You can also use the <b>Latency Explorer</b> to debug exactly why a cell passed or failed for a given endpoint.</p></section>
+    <section class="help-section" id="underhood"><h3><i class="fas fa-cogs text-purple-400"></i> How It Works Under the Hood</h3><h4>Cost-Effective Coverage Algorithm</h4><p>The tool strictly treats the SLA as a <b>pass/fail gate</b>. For each candidate AWS region, the tool calculates a <b>Cost Efficiency Score</b>:</p><div class="help-formula">Score = Region_Cost ÷ Endpoints_Covered</div><p>Lower scores win. The algorithm iteratively picks the cheapest combination of regions to get 100% of your un-covered endpoints into the "Pass" state.</p><h4>Direct Distance vs AWS Backbone</h4><p>When computing latency, the tool checks the entity type of both endpoints:</p><ul><li><b>AWS to AWS:</b> Uses a hardcoded 32x32 ping matrix representing the true latency of the AWS global backbone.</li><li><b>AWS to City (Naive Mode):</b> Finds the nearest AWS region to the target city and uses the 32x32 backbone matrix latency directly to that proxy region.</li><li><b>AWS to City (Realistic Mode):</b> Defaults to the Direct Distance Model. It calculates the exact Haversine geographic distance between the data center and the city coordinates, multiplies it by 0.012 ms per kilometer, and adds a last-mile infrastructure tier tax.</li></ul>
+    <h4>Why 0.012 ms/km? (The Physics)</h4>
+    <p>This propagation delay factor is mathematically grounded in the physics of fiber optic networking:</p>
+    <ul>
+      <li><b>Speed of light in a vacuum:</b> ~300,000 km/s.</li>
+      <li><b>Speed of light in glass (fiber):</b> ~200,000 km/s (due to a refractive index of ~1.5).</li>
+      <li><b>Time per kilometer:</b> 1 km / 200,000 km/s = 0.000005 seconds, or 0.005 ms per km.</li>
+      <li><b>Round-Trip Time (RTT):</b> Networking latency measures the time to go and come back. Doubling the one-way time: 0.005 ms × 2 = 0.01 ms per km.</li>
+    </ul>
+    <p>The final factor of <b>0.012 ms/km</b> adds a ~20% buffer to account for the fact that fiber optic cables are rarely laid in a perfectly straight line between two points; they curve along roads, rails, and physical geography.</p>
+    <div class="help-callout success"><div class="callout-title"><i class="fas fa-heart text-emerald-400"></i> That's it!</div>Close this guide and start planning your next cell deployment.</div></section>
   </div>
 </aside>
 <script>
@@ -703,11 +713,11 @@ function updateStepIndicator(){
       label.classList.replace('text-slate-500', 'text-slate-400');
     }else if(i===currentStep){
       dot.classList.add('active');
-      const icons=['fa-server','fa-users','fa-sliders','fa-chart-bar'];
+      const icons=['fa-server','fa-network-wired','fa-sliders','fa-chart-bar'];
       dot.innerHTML=`<i class="fas ${icons[i-1]} text-sm"></i>`;
       label.classList.replace('text-slate-500', 'accent');
     }else{
-      const icons=['fa-server','fa-users','fa-sliders','fa-chart-bar'];
+      const icons=['fa-server','fa-network-wired','fa-sliders','fa-chart-bar'];
       dot.innerHTML=`<i class="fas ${icons[i-1]} text-sm"></i>`;
     }
     if(i<4)document.getElementById(`line-${i}`).className=i<currentStep?'step-line active':'step-line';
@@ -891,7 +901,7 @@ function updateCustMap(){
   });
   customers.forEach((c,i)=>{
     const marker=L.marker([c.lat,c.lng],{icon:createPulseIcon('#ef4444')}).addTo(custMap);
-    marker.bindPopup(`<b>${c.name}</b><br><span class="text-xs text-slate-400">Customer #${i+1}</span>`);
+    marker.bindPopup(`<b>${c.name}</b><br><span class="text-xs text-slate-400">Endpoint #${i+1}</span>`);
     custMapMarkers.push(marker);
   });
 }
@@ -915,7 +925,7 @@ function setSLAMode(mode){
 
 function renderSLAPerList(){
   const container=document.getElementById('sla-per-list');
-  if(customers.length===0){container.innerHTML='<p class="text-sm text-slate-500 italic">No customers added yet.</p>';return}
+  if(customers.length===0){container.innerHTML='<p class="text-sm text-slate-500 italic">No endpoints added yet.</p>';return}
   container.innerHTML=customers.map((c,i)=>{
     const val=perCustomerSLA[i]!==undefined?perCustomerSLA[i]:150;
     let preview;
@@ -1068,7 +1078,7 @@ function renderDashboard(){
   }
 
   const covList=document.getElementById('dash-covered-list');
-  covList.innerHTML=covered.length>0?covered.map(c=>`<div class="py-2 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20"><div class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-400"></i><div class="flex-1 min-w-0"><div class="text-sm font-medium text-white truncate">${c.name}</div><div class="text-xs text-slate-400">via ${regions[c.serving.cellIdx].name}</div>${renderBreakdown(c.serving.breakdown)}</div></div></div>`).join(''):'<p class="text-sm text-slate-500 italic">No customers covered by existing cells.</p>';
+  covList.innerHTML=covered.length>0?covered.map(c=>`<div class="py-2 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20"><div class="flex items-center gap-2"><i class="fas fa-check-circle text-emerald-400"></i><div class="flex-1 min-w-0"><div class="text-sm font-medium text-white truncate">${c.name}</div><div class="text-xs text-slate-400">via ${regions[c.serving.cellIdx].name}</div>${renderBreakdown(c.serving.breakdown)}</div></div></div>`).join(''):'<p class="text-sm text-slate-500 italic">No endpoints covered by existing cells.</p>';
 
   const pendList=document.getElementById('dash-pending-list');
   pendList.innerHTML=pendingCovered.length>0?pendingCovered.map(c=>`<div class="py-2 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20"><div class="flex items-center gap-2"><i class="fas fa-clock text-amber-400"></i><div class="flex-1 min-w-0"><div class="text-sm font-medium text-white truncate">${c.name}</div><div class="text-xs text-slate-400">via <span class="text-blue-400">${c.coveredByCell}</span></div>${renderBreakdown(c.recBreakdown)}</div></div></div>`).join(''):'<p class="text-sm text-slate-500 italic">No pending coverage.</p>';
@@ -1100,9 +1110,9 @@ function renderDashboard(){
 
   const recDiv=document.getElementById('dash-recommendations');
   if(uncovered.length===0){
-    recDiv.innerHTML='<div class="text-center py-8"><i class="fas fa-check-circle text-4xl text-emerald-400 mb-3"></i><p class="text-lg font-semibold text-white">All customers are already covered!</p><p class="text-sm text-slate-400 mt-1">No new cell deployments required.</p></div>';
+    recDiv.innerHTML='<div class="text-center py-8"><i class="fas fa-check-circle text-4xl text-emerald-400 mb-3"></i><p class="text-lg font-semibold text-white">All endpoints are already covered!</p><p class="text-sm text-slate-400 mt-1">No new cell deployments required.</p></div>';
   }else if(recommendations.length===0){
-    recDiv.innerHTML='<div class="text-center py-8"><i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-3"></i><p class="text-lg font-semibold text-white">Impossible SLA Requirements</p><p class="text-sm text-slate-400 mt-1">No AWS region on Earth can serve these customers within their SLA.</p></div>';
+    recDiv.innerHTML='<div class="text-center py-8"><i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-3"></i><p class="text-lg font-semibold text-white">Impossible SLA Requirements</p><p class="text-sm text-slate-400 mt-1">No AWS region on Earth can serve these endpoints within their SLA.</p></div>';
   }else{
     recDiv.innerHTML=recommendations.map((r,i)=>{
       const cost=estimateRegionCost(r.cellIdx);
@@ -1119,7 +1129,7 @@ function renderDashboard(){
             <div class="text-xs text-slate-400">${r.cellCode} · ${idx.toFixed(2)}x · ${tierLabel}</div>
           </div>
           <div class="flex flex-col items-end gap-1">
-            <div class="text-sm text-emerald-400 font-medium">${r.covers.length} customer${r.covers.length>1?'s':''}</div>
+            <div class="text-sm text-emerald-400 font-medium">${r.covers.length} endpoint${r.covers.length>1?'s':''}</div>
             <div class="flex items-center gap-2">
               <span class="latency-badge">~${recAvgLatency}ms avg</span>
               <span class="cost-tag ${tier}">~${formatMoney(cost)}/mo</span>
