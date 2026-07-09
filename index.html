@@ -182,6 +182,20 @@ input[type=number]:focus{border-color:#10b981}
 
 .latency-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(139,92,246,0.15);color:#c4b5fd;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;font-family:ui-monospace,monospace}
 
+.toast { position: fixed; top: 24px; right: 24px; background: rgba(15,23,42,0.95); border: 1px solid rgba(51,65,85,0.6); color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 10002; display: flex; align-items: center; gap: 10px; transform: translateX(150%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-size: 14px; font-weight: 500;}
+.toast.show { transform: translateX(0); }
+.toast-icon.success { color: #10b981; }
+.toast-icon.error { color: #ef4444; }
+
+/* Dropdown styling */
+.export-dropdown { position: absolute; top: calc(100% + 8px); right: 0; background: rgba(15,23,42,0.98); border: 1px solid rgba(51,65,85,0.8); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); width: 280px; z-index: 100; opacity: 0; pointer-events: none; transform: translateY(-10px); transition: all 0.2s ease; backdrop-filter: blur(12px); overflow: hidden; }
+.export-dropdown.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.export-option { display: block; width: 100%; text-align: left; padding: 14px 16px; border-bottom: 1px solid rgba(51,65,85,0.4); background: transparent; transition: all 0.2s; cursor: pointer; }
+.export-option:hover { background: rgba(30,41,59,0.8); }
+.export-option:last-child { border-bottom: none; }
+.export-option-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+.export-option-desc { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+
 @media (max-width: 640px) {
   .help-drawer{max-width:100%}
   .help-fab{bottom:16px;right:16px;width:50px;height:50px;font-size:20px}
@@ -205,7 +219,26 @@ input[type=number]:focus{border-color:#10b981}
     <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center"><i class="fas fa-network-wired text-emerald-400 text-lg"></i></div>
     <div><h1 class="text-base sm:text-lg font-bold text-white">Cell Placement Optimizer</h1><p class="text-xs text-slate-400">AWS Global Infrastructure Planner</p></div>
   </div>
-  <button class="btn-ghost text-sm flex items-center gap-2 px-3 py-2 rounded-lg" onclick="openHelp()"><i class="fas fa-book-open text-emerald-400"></i><span class="hidden sm:inline">User Guide</span></button>
+  <div class="flex items-center gap-1 sm:gap-2 relative" id="header-actions">
+    <input type="file" id="import-file" accept=".json" class="hidden" onchange="handleImport(event)">
+    <button class="btn-ghost text-xs sm:text-sm flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg hover:bg-slate-800/50" onclick="document.getElementById('import-file').click()" title="Import Session"><i class="fas fa-file-import text-blue-400"></i><span class="hidden sm:inline">Import</span></button>
+    
+    <div class="relative inline-block">
+      <button class="btn-ghost text-xs sm:text-sm flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg hover:bg-slate-800/50" onclick="toggleExportMenu()" id="export-btn" title="Export Data"><i class="fas fa-file-export text-purple-400"></i><span class="hidden sm:inline">Export</span><i class="fas fa-chevron-down text-[10px] ml-1 opacity-70"></i></button>
+      <div class="export-dropdown" id="export-menu">
+        <button class="export-option" onclick="exportSessionJSON()">
+          <div class="export-option-title"><i class="fas fa-code text-purple-400"></i> JSON File</div>
+          <div class="export-option-desc">Saves full app state. <strong>Highly recommended if you intend to import this data back for a future session.</strong></div>
+        </button>
+        <button class="export-option" onclick="exportSessionCSV()">
+          <div class="export-option-title"><i class="fas fa-table text-emerald-400"></i> CSV File</div>
+          <div class="export-option-desc">Exports a spreadsheet-friendly report of your current endpoints, SLA, and footprint. Cannot be imported back.</div>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-ghost text-xs sm:text-sm flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg hover:bg-slate-800/50" onclick="openHelp()"><i class="fas fa-book-open text-emerald-400"></i><span class="hidden sm:inline">Guide</span></button>
+  </div>
 </header>
 <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
   <div class="flex items-center justify-center mb-10 px-4 overflow-x-auto pb-2">
@@ -372,6 +405,7 @@ input[type=number]:focus{border-color:#10b981}
 <button class="help-fab" onclick="openHelp()" aria-label="Open user guide"><i class="fas fa-question"></i></button>
 <div class="help-fab-tooltip">Open User Guide</div>
 <div class="help-backdrop" id="help-backdrop" onclick="closeHelp()"></div>
+<div id="toast-msg" class="toast"><i id="toast-icon" class="fas fa-check-circle toast-icon success"></i><span id="toast-text"></span></div>
 <aside class="help-drawer" id="help-drawer" aria-label="User Guide">
   <div class="help-header"><h2><i class="fas fa-book-open text-emerald-400"></i> User Guide</h2><button class="help-close" onclick="closeHelp()" aria-label="Close guide"><i class="fas fa-times"></i></button></div>
   <div class="help-toc"><div class="help-toc-title">Jump to section</div><div class="help-toc-list"><a class="help-toc-link" onclick="scrollToSection('intro')">📖 Overview</a><a class="help-toc-link" onclick="scrollToSection('concepts')">💡 Key Concepts</a><a class="help-toc-link" onclick="scrollToSection('step1')">Step 1: Current Footprint</a><a class="help-toc-link" onclick="scrollToSection('cost')">💰 Cost Calculator</a><a class="help-toc-link" onclick="scrollToSection('step2')">Step 2: Endpoints</a><a class="help-toc-link" onclick="scrollToSection('step3')">Step 3: SLA Config</a><a class="help-toc-link" onclick="scrollToSection('step4')">Step 4: Analysis</a><a class="help-toc-link" onclick="scrollToSection('underhood')">🔧 How It Works</a></div></div>
@@ -1202,6 +1236,295 @@ function initDashMap(covered,pendingCovered,impossible,recommendations){
       dashMap.fitBounds(group.getBounds().pad(0.2));
     }
   }
+}
+
+function showToast(msg, isError = false) {
+  const toast = document.getElementById('toast-msg');
+  const icon = document.getElementById('toast-icon');
+  document.getElementById('toast-text').textContent = msg;
+  icon.className = `fas ${isError ? 'fa-exclamation-circle error' : 'fa-check-circle success'} toast-icon`;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function toggleExportMenu() {
+  document.getElementById('export-menu').classList.toggle('show');
+}
+
+// Close export menu if clicked outside
+document.addEventListener('click', function(event) {
+  const menu = document.getElementById('export-menu');
+  const btn = document.getElementById('export-btn');
+  if (menu.classList.contains('show') && !menu.contains(event.target) && !btn.contains(event.target)) {
+    menu.classList.remove('show');
+  }
+});
+
+function exportSessionJSON() {
+  document.getElementById('export-menu').classList.remove('show');
+  
+  // Run a headless analysis to ensure results are perfectly up-to-date
+  const results = generateHeadlessAnalysis();
+  
+  const sessionData = {
+    version: "1.0",
+    selectedFootprint,
+    cellCosts,
+    baselineMode,
+    specificBaselineIdx,
+    customers,
+    slaMode,
+    globalSLA,
+    perCustomerSLA,
+    realisticMode,
+    analysisResults: results // Included for external use, ignored on import
+  };
+  
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sessionData, null, 2));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href", dataStr);
+  
+  const date = new Date();
+  const timestamp = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}_${date.getHours().toString().padStart(2,'0')}${date.getMinutes().toString().padStart(2,'0')}`;
+  downloadAnchorNode.setAttribute("download", `cell_optimizer_session_${timestamp}.json`);
+  
+  document.body.appendChild(downloadAnchorNode);
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+  showToast("JSON exported successfully!");
+}
+
+// Helper function to calculate results cleanly for exports
+function generateHeadlessAnalysis() {
+  const covered = [], uncovered = [];
+  customers.forEach((c, i) => {
+    const sla = slaMode === 'global' ? globalSLA : (perCustomerSLA[i] !== undefined ? perCustomerSLA[i] : 150);
+    let isCovered = false;
+    let bestServing = null;
+    for (let cellIdx of selectedFootprint) {
+      const b = getCustomerLatency(cellIdx, c, true);
+      if (b.total <= sla) {
+        isCovered = true;
+        if (!bestServing || b.total < bestServing.breakdown.total) bestServing = { cellIdx, breakdown: b };
+      }
+    }
+    if (isCovered) covered.push({ ...c, sla, idx: i, serving: bestServing });
+    else {
+      let bestFrom = null;
+      const cellsToCheck = selectedFootprint.length > 0 ? selectedFootprint : [findNearestRegionIdx(c.lat, c.lng)];
+      for (let cellIdx of cellsToCheck) {
+        const b = getCustomerLatency(cellIdx, c, true);
+        if (!bestFrom || b.total < bestFrom.breakdown.total) bestFrom = { cellIdx, breakdown: b };
+      }
+      uncovered.push({ ...c, sla, idx: i, bestFrom });
+    }
+  });
+
+  const recommendations = [];
+  const remainingSet = new Set(uncovered.map(c => c.idx));
+  const remainingCustomers = [...uncovered];
+  const usedCells = new Set();
+  
+  while (remainingSet.size > 0) {
+    let bestCellIdx = -1;
+    let bestCoveredList = [];
+    let minCostPerCust = Infinity;
+    let maxCountTieBreaker = 0;
+    
+    for (let ci = 0; ci < regions.length; ci++) {
+      if (usedCells.has(ci)) continue;
+      const coversNow = [];
+      for (const cust of remainingCustomers) {
+        if (!remainingSet.has(cust.idx)) continue;
+        const b = getCustomerLatency(ci, cust, true);
+        if (b.total <= cust.sla) coversNow.push({ ...cust, breakdown: b });
+      }
+      if (coversNow.length === 0) continue;
+      const regionCost = estimateRegionCost(ci);
+      const costPerCust = regionCost / coversNow.length;
+      if (costPerCust < minCostPerCust || (Math.abs(costPerCust - minCostPerCust) < 0.01 && coversNow.length > maxCountTieBreaker)) {
+        minCostPerCust = costPerCust;
+        maxCountTieBreaker = coversNow.length;
+        bestCellIdx = ci;
+        bestCoveredList = coversNow;
+      }
+    }
+
+    if (bestCellIdx === -1) break;
+    recommendations.push({ cellIdx: bestCellIdx, cellName: regions[bestCellIdx].name, cellCode: regions[bestCellIdx].code, covers: bestCoveredList });
+    usedCells.add(bestCellIdx);
+    for (const cust of bestCoveredList) remainingSet.delete(cust.idx);
+  }
+  
+  const totalOpex = recommendations.reduce((sum, r) => sum + estimateRegionCost(r.cellIdx), 0);
+  
+  const coverageMap = new Map();
+  recommendations.forEach(rec => { rec.covers.forEach(c => coverageMap.set(c.idx, { rec, breakdown: c.breakdown })) });
+  
+  const impossible = [];
+  uncovered.forEach(c => {
+    if(!coverageMap.has(c.idx)) impossible.push(c);
+  });
+
+  return {
+    summary: {
+      totalEndpoints: customers.length,
+      alreadyCoveredCount: covered.length,
+      newRecommendationsCount: recommendations.length,
+      impossibleToCoverCount: impossible.length,
+      estimatedNewMonthlyOpex: totalOpex
+    },
+    alreadyCovered: covered.map(c => ({
+      name: c.name,
+      slaThreshold: c.sla,
+      servedByCell: regions[c.serving.cellIdx].code,
+      actualLatency: c.serving.breakdown.total
+    })),
+    recommendedNewCells: recommendations.map(r => ({
+      cellCode: r.cellCode,
+      cellName: r.cellName,
+      estimatedMonthlyCost: estimateRegionCost(r.cellIdx),
+      endpointsCoveredCount: r.covers.length,
+      endpointsCovered: r.covers.map(c => ({
+        name: c.name,
+        slaThreshold: c.sla,
+        actualLatency: c.breakdown.total
+      }))
+    })),
+    impossibleSLAs: impossible.map(c => ({
+      name: c.name,
+      slaThreshold: c.sla,
+      bestPossibleLatency: c.bestFrom.breakdown.total
+    }))
+  };
+}
+
+function exportSessionCSV() {
+  document.getElementById('export-menu').classList.remove('show');
+  
+  // Build a multi-section CSV to capture as much useful state as possible
+  let csvContent = "data:text/csv;charset=utf-8,";
+  
+  // Section 1: Global Config
+  csvContent += "--- GLOBAL SETTINGS ---\n";
+  csvContent += `SLA Mode,${slaMode}\n`;
+  if(slaMode === 'global') csvContent += `Global SLA Limit (ms),${globalSLA}\n`;
+  csvContent += `Latency Model,${realisticMode ? 'Realistic (Distance + Infra Tax)' : 'Naive (AWS Proxy)'}\n`;
+  csvContent += `Optimization Strategy,Cost-Effective Coverage\n\n`;
+  
+  // Section 2: Footprint
+  csvContent += "--- EXISTING INFRASTRUCTURE FOOTPRINT ---\n";
+  csvContent += "Region Name,Region Code,Continent,Entered Cost ($/mo)\n";
+  if (selectedFootprint.length === 0) {
+    csvContent += "No existing cells defined.,,,\n";
+  } else {
+    selectedFootprint.forEach(idx => {
+      const r = regions[idx];
+      const cost = cellCosts[idx] || 'N/A';
+      csvContent += `"${r.name}","${r.code}","${r.continent}","${cost}"\n`;
+    });
+  }
+  csvContent += "\n";
+  
+  // Section 3: Endpoints
+  csvContent += "--- TARGET ENDPOINTS ---\n";
+  csvContent += "Endpoint Name,Latitude,Longitude,Tier,SLA Threshold (ms)\n";
+  if (customers.length === 0) {
+    csvContent += "No endpoints defined.,,,,\n";
+  } else {
+    customers.forEach((c, i) => {
+      const tier = c.tier || (c.regionIdx !== undefined ? 1 : 2);
+      const sla = slaMode === 'global' ? globalSLA : (perCustomerSLA[i] || 150);
+      csvContent += `"${c.name}",${c.lat},${c.lng},${tier},${sla}\n`;
+    });
+  }
+  csvContent += "\n";
+
+  // Section 4: Analysis Results
+  csvContent += "--- ANALYSIS RESULTS ---\n";
+  const results = generateHeadlessAnalysis();
+  
+  csvContent += "SUMMARY\n";
+  csvContent += `Total Endpoints,${results.summary.totalEndpoints}\n`;
+  csvContent += `Already Covered,${results.summary.alreadyCoveredCount}\n`;
+  csvContent += `New Cells Recommended,${results.summary.newRecommendationsCount}\n`;
+  csvContent += `Impossible to Cover,${results.summary.impossibleToCoverCount}\n`;
+  csvContent += `Estimated Monthly OPEX,$${results.summary.estimatedNewMonthlyOpex}\n\n`;
+
+  csvContent += "RECOMMENDED NEW CELLS\n";
+  if (results.recommendedNewCells.length === 0) {
+    csvContent += "No new cells needed.\n";
+  } else {
+    csvContent += "Cell Code,Cell Name,Monthly Cost,Endpoint Name,Required SLA (ms),Actual Latency (ms)\n";
+    results.recommendedNewCells.forEach(cell => {
+      cell.endpointsCovered.forEach((ep, index) => {
+        // Only print the cell info on the first row to group them nicely
+        if (index === 0) {
+          csvContent += `"${cell.cellCode}","${cell.cellName}","$${cell.estimatedMonthlyCost}","${ep.name}",${ep.slaThreshold},${ep.actualLatency}\n`;
+        } else {
+          csvContent += `,,,"${ep.name}",${ep.slaThreshold},${ep.actualLatency}\n`;
+        }
+      });
+    });
+  }
+  
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  
+  const date = new Date();
+  const timestamp = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2,'0')}${date.getDate().toString().padStart(2,'0')}_${date.getHours().toString().padStart(2,'0')}${date.getMinutes().toString().padStart(2,'0')}`;
+  link.setAttribute("download", `cell_optimizer_data_${timestamp}.csv`);
+  
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  showToast("CSV report exported successfully!");
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      
+      // Safely restore state variables (we purposefully ignore data.analysisResults)
+      selectedFootprint = data.selectedFootprint || [];
+      cellCosts = data.cellCosts || {};
+      baselineMode = data.baselineMode || 'blended';
+      specificBaselineIdx = data.specificBaselineIdx !== undefined ? data.specificBaselineIdx : null;
+      customers = data.customers || [];
+      slaMode = data.slaMode || 'global';
+      globalSLA = data.globalSLA || 150;
+      perCustomerSLA = data.perCustomerSLA || {};
+      
+      if (data.realisticMode !== undefined) {
+         setRealisticMode(data.realisticMode);
+      }
+      
+      // Sync UI inputs that aren't inherently bound to the step rendering
+      document.getElementById('global-sla-input').value = globalSLA;
+      setSLAMode(slaMode);
+      
+      // Jump back to step 1 to refresh the lists and map
+      goToStep(1);
+      showToast("Session imported successfully!");
+    } catch (err) {
+      console.error("Import error:", err);
+      showToast("Failed to parse session file. Invalid JSON.", true);
+    } finally {
+      // Clear the file input so the same file can be imported again if needed
+      event.target.value = '';
+    }
+  };
+  reader.onerror = function() {
+    showToast("Error reading file.", true);
+    event.target.value = '';
+  };
+  reader.readAsText(file);
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
