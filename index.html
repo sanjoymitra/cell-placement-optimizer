@@ -1150,7 +1150,8 @@ function renderDashboard(){
         const isWinner=cand.withinSLA;
         const isExisting = selectedFootprint.includes(cand.cellIdx);
         const existingTag = isExisting ? '<span class="text-[10px] font-semibold bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded ml-2 uppercase tracking-wide">Existing</span>' : '';
-        return `<div class="candidate-row ${isWinner&&rank===0?'winner':''}"><div class="candidate-rank">${rank+1}</div><div class="flex-1 min-w-0"><div class="text-xs font-medium ${isWinner?'text-emerald-300':'text-slate-300'} truncate flex items-center">${cand.cellName}${isWinner?'<i class="fas fa-check-circle text-emerald-400 ml-1"></i>':''}${existingTag}</div><div class="text-xs text-slate-500">${cand.cellCode}</div></div>${renderBreakdown(cand.breakdown)}</div>`;
+        const candCost = estimateRegionCost(cand.cellIdx);
+        return `<div class="candidate-row ${isWinner&&rank===0?'winner':''}"><div class="candidate-rank">${rank+1}</div><div class="flex-1 min-w-0"><div class="text-xs font-medium ${isWinner?'text-emerald-300':'text-slate-300'} truncate flex items-center">${cand.cellName}${isWinner?'<i class="fas fa-check-circle text-emerald-400 ml-1"></i>':''}${existingTag}</div><div class="text-xs text-slate-500 flex items-center gap-1.5"><span>${cand.cellCode}</span><span class="text-[10px] font-mono text-slate-400 bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-700">~${formatMoney(candCost)}/mo</span></div></div>${renderBreakdown(cand.breakdown)}</div>`;
       }).join('')}</div></div>`;
     }).join('');
   }else explorerDiv.classList.add('hidden');
