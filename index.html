@@ -869,10 +869,13 @@ function showModule(moduleName) {
     if (custMap) custMap.invalidateSize();
     if (dashMap) dashMap.invalidateSize();
   } else if (moduleName === 'onboarding') {
-    if (ob_tasks.length === 0) {
-      resetTimeline();
+    if (!ob_gantt_initialized) {
+      initDhtmlxGantt();
+      const state = generateGanttStateFromTasks(getDefaultTemplate(currentScope));
+      tierStates[currentScope] = state;
+      renderState(state);
     } else {
-      recalculateAndRenderGantt();
+      renderState(tierStates[currentScope]);
     }
   }
 }
@@ -883,303 +886,91 @@ function showModule(moduleName) {
 let ob_hourlyRate = 100;
 let ob_margin = 20;
 let ob_linkDuration = true;
-let ob_tasks = [];
 let ob_gantt_initialized = false;
+let currentScope = 1;
+
+// The multi-tier memory cache
+let tierStates = { 1: null, 2: null, 3: null };
 
 // We use an arbitrary start date to anchor the "Day 1, Day 2" math
 const PROJECT_START = new Date(2025, 0, 1); 
+
+function formatGanttDate(date) {
+  if (!date) return "";
+  if (typeof date === 'string') return date;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 function toggleLinkDuration() {
   ob_linkDuration = document.getElementById('ob-link-duration').checked;
 }
 
-// Triggered by the inline inputs inside the DHTMLX Grid
-window.updateGridHours = function(id, val) {
-  let rawHours = parseFloat(val) || 0;
-  let hours = Math.ceil(rawHours / 4) * 4; // 4-hour ceiling rule
-  if (hours === 0) hours = 4;
-  
-  const t = ob_tasks.find(x => String(x.id) === String(id));
-  if (t) {
-    t.hours = hours;
-    t.manual_duration_days = undefined; 
-    recalculateAndRenderGantt();
-  }
-};
-
-window.updateGridText = function(id, val) {
-  const t = ob_tasks.find(x => String(x.id) === String(id));
-  if (t) {
-    t.name = val;
-    recalculateAndRenderGantt();
-  }
-};
-
-window.deleteObTask = function(id) {
-  ob_tasks = ob_tasks.filter(t => String(t.id) !== String(id));
-  
-  // Cleanup orphaned dependencies
-  ob_tasks.forEach(t => {
-      if (t.deps) {
-          let depsArr = t.deps.split(',').map(s => s.trim());
-          depsArr = depsArr.filter(d => d !== String(id));
-          t.deps = depsArr.join(', ');
-      }
-  });
-  recalculateAndRenderGantt();
-};
-
-window.addObTask = function() {
-  const newId = 't' + (new Date().getTime());
-  ob_tasks.push({
-      id: newId,
-      name: 'New Task',
-      hours: 8,
-      deps: ''
-  });
-  recalculateAndRenderGantt();
-};
-
-// --- NEW DECISION ENGINE LOGIC ---
-let currentScope = 1;
-let pendingScope = null;
-
-window.promptResetTimeline = function() {
-    pendingScope = currentScope;
-    document.getElementById('confirm-modal-root').classList.add('open');
-};
-
-window.handleScopeChange = function(val) {
-    pendingScope = parseInt(val);
-    document.getElementById('confirm-modal-root').classList.add('open');
-};
-
-window.confirmScopeChange = function() {
-    currentScope = pendingScope;
-    document.getElementById('confirm-modal-root').classList.remove('open');
-    resetTimeline();
-    showToast("Timeline updated successfully!");
-};
-
-window.cancelScopeChange = function() {
-    document.getElementById('confirm-modal-root').classList.remove('open');
-    document.getElementById('deployment-scope').value = currentScope; // Revert dropdown
-    pendingScope = null;
-};
-
-window.resetTimeline = function() {
-    const scope = currentScope;
-    
-    if (scope === 1) {
-        // Tier 1: Maximum Effort (8 Standard Tasks + Project Coordination)
-        ob_tasks = [
-            { id: "t1", name: "Provision Near-Prem Cell", hours: 40, deps: "" },
-            { id: "t2", name: "Core Network Configuration", hours: 24, deps: "t1" },
-            { id: "t3", name: "Central-Cell Sync Integration", hours: 32, deps: "t2" },
-            { id: "t4", name: "Service Provider Handshake (API)", hours: 16, deps: "t3" },
-            { id: "t5", name: "Firewall & Security Posture", hours: 32, deps: "t3" },
-            { id: "t6", name: "Load Testing & QA", hours: 16, deps: "t4, t5" },
-            { id: "t7", name: "Training", hours: 16, deps: "t6" },
-            { id: "t8", name: "Go-Live Cutover and Hypercare Support", hours: 16, deps: "t7" },
-            { id: "t9", name: "Project Coordination", hours: 40, deps: "" }
-        ];
-    } else if (scope === 2) {
-        // Tier 2: Integration Only (Skips core infrastructure)
-        ob_tasks = [
-            { id: "t3", name: "Central-Cell Sync Integration", hours: 32, deps: "" },
-            { id: "t4", name: "Service Provider Handshake (API)", hours: 16, deps: "t3" },
-            { id: "t5", name: "Firewall & Security Posture", hours: 32, deps: "t3" },
-            { id: "t6", name: "Load Testing & QA", hours: 16, deps: "t4, t5" },
-            { id: "t7", name: "Training", hours: 16, deps: "t6" },
-            { id: "t8", name: "Go-Live Cutover and Hypercare Support", hours: 16, deps: "t7" },
-            { id: "t9", name: "Project Coordination", hours: 24, deps: "" }
-        ];
-    } else if (scope === 3) {
-        // Tier 3: Minimum Effort (Standard onboarding)
-        ob_tasks = [
-            { id: "t6", name: "Load Testing & QA", hours: 16, deps: "" },
-            { id: "t7", name: "Training", hours: 16, deps: "t6" },
-            { id: "t8", name: "Go-Live Cutover and Hypercare Support", hours: 16, deps: "t7" },
-            { id: "t9", name: "Project Coordination", hours: 16, deps: "" }
-        ];
-    }
-    
-    recalculateAndRenderGantt();
-};
-
-function updateOnboardingFinancials() {
-  ob_hourlyRate = parseFloat(document.getElementById('ob-rate').value) || 0;
-  ob_margin = parseFloat(document.getElementById('ob-margin').value) || 0;
-  
-  const totalHours = ob_tasks.reduce((sum, t) => sum + t.hours, 0);
-  const internalCost = totalHours * ob_hourlyRate;
-  
-  const marginMultiplier = 1 - (ob_margin / 100);
-  const customerPrice = marginMultiplier > 0 ? internalCost / marginMultiplier : internalCost;
-
-  let totalDays = 0;
-  if (ob_gantt_initialized) {
-     let maxDate = gantt.config.start_date;
-     gantt.eachTask(function(task) {
-         if (task.end_date > maxDate) maxDate = task.end_date;
-     });
-     totalDays = Math.max(0, Math.round((maxDate - gantt.config.start_date) / (1000 * 60 * 60 * 24)));
-  } else {
-     let maxEndDay = 0;
-     ob_tasks.forEach(t => {
-         if (t.computed_end_days > maxEndDay) maxEndDay = t.computed_end_days;
-     });
-     totalDays = Math.ceil(maxEndDay);
-  }
-
-  document.getElementById('ob-total-days').textContent = `${totalDays} Days`;
-  document.getElementById('ob-total-hours').textContent = `${totalHours} total estimated hours`;
-  document.getElementById('ob-internal-cost').textContent = '$' + internalCost.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
-  document.getElementById('ob-customer-price').textContent = '$' + customerPrice.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
-}
-
-function initDhtmlxGantt() {
-  if (ob_gantt_initialized) return;
-
-  // DHTMLX Baseline Config
-  gantt.config.date_format = "%Y-%m-%d";
-  gantt.config.start_date = PROJECT_START;
-  gantt.config.details_on_dblclick = false; // Disable popup lightbox so we can use inline inputs safely
-  gantt.config.details_on_create = false;
-  gantt.config.drag_progress = false; 
-  
-  // Real Estate Fixes
-  gantt.config.grid_width = 540;
-  gantt.config.grid_resize = true;
-  
-  // Make the Gantt chart automatically adjust height to hug the rows
-  gantt.config.autosize = "y";
-  
-  // Enable Drag and Drop Reordering
-  gantt.config.order_branch = true;
-  gantt.config.order_branch_free = true;
-  gantt.config.show_errors = false;
-  
-  // Half-Day Snapping during dragging/resizing
-  gantt.config.time_step = 12 * 60; // 12 hours
-  gantt.config.duration_unit = "day";
-  gantt.config.duration_step = 1;
-  gantt.config.round_dnd_dates = false; 
-
-  // Generic "Day 1, Day 2" Header configuration
-  gantt.config.scales = [
-      {unit: "day", step: 1, format: function(date){
-          const diff = Math.floor((date - gantt.config.start_date) / (1000 * 60 * 60 * 24)) + 1;
-          return "Day " + diff;
-      }}
-  ];
-  
-  // Custom Unified Grid Configuration (Left Panel)
-  gantt.config.columns = [
-      {name: "drag", label: "", width: 34, align: "center", template: function(task){
-          return `<div class="gantt_custom_flex_cell text-slate-600 cursor-grab hover:text-slate-300 transition-colors" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>`;
-      }},
-      {name: "text", label: "Line Item / Activity", width: '*', template: function(task){
-          const safeText = task.text.replace(/"/g, '&quot;');
-          return `<input type="text" class="bg-transparent text-white outline-none w-full font-medium" value="${safeText}" onchange="updateGridText('${task.id}', this.value)" onclick="event.stopPropagation();">`;
-      }},
-      {name: "hours", label: "Est. Hrs", align: "center", width: 80, template: function(task){
-          // We embed a direct input box to prevent needing DHTMLX Pro inline editors
-          return `<div class="gantt_custom_flex_cell"><div class="bg-slate-900/80 border border-slate-700/80 rounded" style="width:55px; padding: 2px;" onclick="event.stopPropagation();">
-              <input type="number" class="ob-grid-input" value="${task.hours}" min="4" step="4" onchange="updateGridHours('${task.id}', this.value)">
-          </div></div>`;
-      }},
-      {name: "cost", label: "Est. Cost", align: "center", width: 90, template: function(task){
-          const cost = task.hours * ob_hourlyRate;
-          return `<div class="gantt_custom_flex_cell text-emerald-400 text-xs font-mono font-semibold">$${cost.toLocaleString('en-US')}</div>`;
-      }},
-      {name: "duration", label: "Vis. Days", align: "center", width: 65, template: function(task){
-          return `<div class="gantt_custom_flex_cell text-slate-400 text-xs">${task.duration}</div>`;
-      }},
-      {name: "delete", label: "", width: 40, align: "center", template: function(task){
-          return `<div class="gantt_custom_flex_cell text-slate-500 hover:text-red-400 cursor-pointer transition-colors" onclick="event.stopPropagation(); deleteObTask('${task.id}')" title="Delete Task"><i class="fas fa-trash-alt"></i></div>`;
-      }}
-  ];
-  
-  // Row Drag & Drop Order Hook
-  gantt.attachEvent("onRowDragEnd", function(id, target) {
-      const newOrder = [];
-      gantt.eachTask(function(task){
-          const t = ob_tasks.find(x => String(x.id) === String(task.id));
-          if (t) newOrder.push(t);
+function saveActiveState() {
+  if (!ob_gantt_initialized) return;
+  let data = [];
+  gantt.eachTask(function(task) {
+      data.push({
+          id: task.id,
+          text: task.text,
+          hours: task.hours || 0,
+          start_date: formatGanttDate(task.start_date),
+          duration: task.duration
       });
-      ob_tasks = newOrder;
-      recalculateAndRenderGantt();
   });
-  
-  // Task Resize Event Hook (The Core Link Logic)
-  gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
-      const task = gantt.getTask(id);
-      const t = ob_tasks.find(x => String(x.id) === String(id));
-      if (!t) return;
-
-      if (mode === "resize") {
-          // Force round to half day visually
-          const days = Math.max(0.5, Math.round(task.duration * 2) / 2);
-          task.duration = days;
-
-          if (ob_linkDuration) {
-              let newHours = days * 8;
-              newHours = Math.ceil(newHours / 4) * 4; 
-              if (newHours === 0) newHours = 4;
-              t.hours = newHours;
-              task.hours = newHours;
-              t.manual_duration_days = undefined;
-          } else {
-              t.manual_duration_days = days;
-          }
-          gantt.updateTask(id);
-          updateOnboardingFinancials();
-      } else if (mode === "move") {
-          // Immediately update dashboard days when a task block is dragged to a new date
-          updateOnboardingFinancials();
-      }
-  });
-  
-  // Interactive Dependency Arrows Hook
-  gantt.attachEvent("onLinkAdd", function(id, link){
-      const targetTask = ob_tasks.find(t => String(t.id) === String(link.target));
-      if (targetTask) {
-          const deps = targetTask.deps ? targetTask.deps.split(',').map(s => s.trim()) : [];
-          if (!deps.includes(String(link.source))) {
-              deps.push(link.source);
-              targetTask.deps = deps.join(', ');
-          }
-          recalculateAndRenderGantt(); // Snap visually immediately
-      }
-  });
-
-  gantt.attachEvent("onLinkDelete", function(id, link){
-      const targetTask = ob_tasks.find(t => String(t.id) === String(link.target));
-      if (targetTask && targetTask.deps) {
-          let deps = targetTask.deps.split(',').map(s => s.trim());
-          deps = deps.filter(d => d !== String(link.source));
-          targetTask.deps = deps.join(', ');
-          recalculateAndRenderGantt(); // Release visualization immediately
-      }
-  });
-  
-  // Custom Hover Tooltip
-  gantt.templates.tooltip_text = function(start, end, task){
-      return `<div class="mb-2"><b class="text-blue-400">${task.text}</b></div>
-              <div class="text-xs text-slate-400 flex justify-between gap-4 mb-1"><span>Billed Effort:</span> <b class="text-white font-mono">${task.hours} Hrs</b></div>
-              <div class="text-xs text-slate-400 flex justify-between gap-4"><span>Visual Calendar:</span> <b class="text-white font-mono">${task.duration} Days</b></div>`;
-  };
-
-  gantt.init("gantt_here");
-  ob_gantt_initialized = true;
+  let links = gantt.getLinks().map(l => ({
+      id: l.id, source: l.source, target: l.target, type: l.type
+  }));
+  tierStates[currentScope] = { data, links };
 }
 
-function recalculateAndRenderGantt() {
+function renderState(stateObj) {
   if (!ob_gantt_initialized) initDhtmlxGantt();
-  
+  const scroll = ob_gantt_initialized ? gantt.getScrollState() : {x:0, y:0};
+  gantt.clearAll();
+  gantt.parse(stateObj);
+  gantt.scrollTo(scroll.x, scroll.y);
+  updateOnboardingFinancials();
+}
+
+function getDefaultTemplate(scope) {
+  if (scope === 1) {
+      return [
+          { id: "t1", name: "Provision Near-Prem Cell", hours: 40, deps: "" },
+          { id: "t2", name: "Core Network Configuration", hours: 24, deps: "t1" },
+          { id: "t3", name: "Central-Cell Sync Integration", hours: 32, deps: "t2" },
+          { id: "t4", name: "Service Provider Handshake (API)", hours: 16, deps: "t3" },
+          { id: "t5", name: "Firewall & Security Posture", hours: 32, deps: "t3" },
+          { id: "t6", name: "Load Testing & QA", hours: 16, deps: "t4, t5" },
+          { id: "t7", name: "Training", hours: 16, deps: "t6" },
+          { id: "t8", name: "Go-Live Cutover and Hypercare Support", hours: 16, deps: "t7" },
+          { id: "t9", name: "Project Coordination", hours: 40, deps: "" }
+      ];
+  } else if (scope === 2) {
+      return [
+          { id: "t3", name: "Central-Cell Sync Integration", hours: 32, deps: "" },
+          { id: "t4", name: "Service Provider Handshake (API)", hours: 16, deps: "t3" },
+          { id: "t5", name: "Firewall & Security Posture", hours: 32, deps: "t3" },
+          { id: "t6", name: "Load Testing & QA", hours: 16, deps: "t4, t5" },
+          { id: "t7", name: "Training", hours: 16, deps: "t6" },
+          { id: "t8", name: "Go-Live Cutover and Hypercare Support", hours: 16, deps: "t7" },
+          { id: "t9", name: "Project Coordination", hours: 24, deps: "" }
+      ];
+  } else {
+      return [
+          { id: "t6", name: "Load Testing & QA", hours: 16, deps: "" },
+          { id: "t7", name: "Training", hours: 16, deps: "t6" },
+          { id: "t8", name: "Go-Live Cutover and Hypercare Support", hours: 16, deps: "t7" },
+          { id: "t9", name: "Project Coordination", hours: 16, deps: "" }
+      ];
+  }
+}
+
+function generateGanttStateFromTasks(tasks) {
   let taskDict = {};
-  ob_tasks.forEach(t => {
+  tasks.forEach(t => {
       taskDict[t.id] = t;
       t.computed_start_days = 0;
       t.computed_end_days = 0;
@@ -1191,7 +982,7 @@ function recalculateAndRenderGantt() {
   while (changed && loops < 20) {
       changed = false;
       loops++;
-      ob_tasks.forEach(t => {
+      tasks.forEach(t => {
           let maxDepEnd = 0;
           if (t.deps && t.deps.trim() !== '') {
               const depIds = t.deps.split(',').map(s => s.trim());
@@ -1201,9 +992,7 @@ function recalculateAndRenderGantt() {
                   }
               });
           }
-          
-          const days = (t.manual_duration_days !== undefined) ? t.manual_duration_days : (t.hours / 8);
-          
+          const days = t.hours / 8;
           if (t.computed_start_days !== maxDepEnd) {
               t.computed_start_days = maxDepEnd;
               t.computed_end_days = maxDepEnd + days;
@@ -1219,26 +1008,22 @@ function recalculateAndRenderGantt() {
   let dhtmlxLinks = [];
   let linkId = 1;
   
-  ob_tasks.forEach(t => {
+  tasks.forEach(t => {
       // Special logic: Project Coordination stretches the whole project by default
-      if (t.id === 't8') {
-         const maxEnd = Math.max(...ob_tasks.map(tx => tx.id === 't8' ? 0 : tx.computed_end_days));
+      if (t.name === 'Project Coordination') {
+         const maxEnd = Math.max(...tasks.map(tx => tx.name === 'Project Coordination' ? 0 : tx.computed_end_days));
          t.computed_start_days = 0;
-         if (t.manual_duration_days === undefined) {
-             t.computed_end_days = maxEnd > 0 ? maxEnd : (t.hours / 8);
-         } else {
-             t.computed_end_days = t.manual_duration_days;
-         }
+         t.computed_end_days = maxEnd > 0 ? maxEnd : (t.hours / 8);
       }
       
       const start = new Date(PROJECT_START.getTime() + t.computed_start_days * 24 * 3600 * 1000);
-      let duration = (t.manual_duration_days !== undefined) ? t.manual_duration_days : (t.computed_end_days - t.computed_start_days);
-      if (duration <= 0) duration = 0.5; // Failsafe
+      let duration = t.computed_end_days - t.computed_start_days;
+      if (duration <= 0) duration = 0.5;
 
       dhtmlxTasks.push({
           id: t.id,
           text: t.name,
-          start_date: start,
+          start_date: formatGanttDate(start),
           duration: duration,
           hours: t.hours
       });
@@ -1246,21 +1031,198 @@ function recalculateAndRenderGantt() {
       if (t.deps) {
           const deps = t.deps.split(',').map(s => s.trim());
           deps.forEach(d => {
-              if (d) {
-                  dhtmlxLinks.push({
-                      id: linkId++,
-                      source: d,
-                      target: t.id,
-                      type: "0"
-                  });
-              }
+              if (d) dhtmlxLinks.push({ id: linkId++, source: d, target: t.id, type: "0" });
           });
       }
   });
 
-  gantt.clearAll();
-  gantt.parse({ data: dhtmlxTasks, links: dhtmlxLinks });
+  return { data: dhtmlxTasks, links: dhtmlxLinks };
+}
+
+// Triggered by the inline inputs inside the DHTMLX Grid
+window.updateGridHours = function(id, val) {
+  let rawHours = parseFloat(val) || 0;
+  let hours = Math.ceil(rawHours / 4) * 4; 
+  if (hours === 0) hours = 4;
+  
+  let task = gantt.getTask(id);
+  task.hours = hours;
+  if (ob_linkDuration) {
+      task.duration = Math.max(0.5, Math.ceil(task.hours / 8));
+      task.end_date = gantt.calculateEndDate({start_date: task.start_date, duration: task.duration});
+  }
+  
+  const scroll = gantt.getScrollState();
+  gantt.updateTask(id);
+  gantt.scrollTo(scroll.x, scroll.y);
+  
   updateOnboardingFinancials();
+  saveActiveState();
+};
+
+window.updateGridText = function(id, val) {
+  let task = gantt.getTask(id);
+  task.text = val;
+  gantt.updateTask(id);
+  saveActiveState();
+};
+
+window.deleteObTask = function(id) {
+  gantt.deleteTask(id);
+  updateOnboardingFinancials();
+  saveActiveState();
+};
+
+window.addObTask = function() {
+  const newId = 't' + (new Date().getTime());
+  gantt.addTask({
+      id: newId,
+      text: 'New Task',
+      hours: 8,
+      duration: 1,
+      start_date: PROJECT_START
+  });
+  updateOnboardingFinancials();
+  saveActiveState();
+};
+
+// --- MULTI-TIER ENGINE ---
+window.handleScopeChange = function(val) {
+    saveActiveState(); // Quietly save current tier
+    
+    currentScope = parseInt(val);
+    if (tierStates[currentScope]) {
+        renderState(tierStates[currentScope]); // Restore previous work
+    } else {
+        const state = generateGanttStateFromTasks(getDefaultTemplate(currentScope));
+        tierStates[currentScope] = state;
+        renderState(state); // Load fresh defaults
+    }
+};
+
+window.promptResetTimeline = function() {
+    document.getElementById('confirm-modal-root').classList.add('open');
+};
+
+window.confirmScopeChange = function() {
+    document.getElementById('confirm-modal-root').classList.remove('open');
+    const state = generateGanttStateFromTasks(getDefaultTemplate(currentScope));
+    tierStates[currentScope] = state; // Overwrite cache
+    renderState(state);
+    showToast("Tier timeline reset successfully!");
+};
+
+window.cancelScopeChange = function() {
+    document.getElementById('confirm-modal-root').classList.remove('open');
+};
+
+function updateOnboardingFinancials() {
+  ob_hourlyRate = parseFloat(document.getElementById('ob-rate').value) || 0;
+  ob_margin = parseFloat(document.getElementById('ob-margin').value) || 0;
+  
+  let totalHours = 0;
+  let maxDate = gantt.config.start_date;
+  
+  if (ob_gantt_initialized) {
+      gantt.eachTask(function(task) {
+          totalHours += (task.hours || 0);
+          if (task.end_date > maxDate) maxDate = task.end_date;
+      });
+  }
+  
+  const internalCost = totalHours * ob_hourlyRate;
+  const marginMultiplier = 1 - (ob_margin / 100);
+  const customerPrice = marginMultiplier > 0 ? internalCost / marginMultiplier : internalCost;
+  const totalDays = ob_gantt_initialized ? Math.max(0, Math.round((maxDate - gantt.config.start_date) / (1000 * 60 * 60 * 24))) : 0;
+
+  document.getElementById('ob-total-days').textContent = `${totalDays} Days`;
+  document.getElementById('ob-total-hours').textContent = `${totalHours} total estimated hours`;
+  document.getElementById('ob-internal-cost').textContent = '$' + internalCost.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+  document.getElementById('ob-customer-price').textContent = '$' + customerPrice.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+function initDhtmlxGantt() {
+  if (ob_gantt_initialized) return;
+
+  gantt.config.date_format = "%Y-%m-%d";
+  gantt.config.start_date = PROJECT_START;
+  gantt.config.details_on_dblclick = false; 
+  gantt.config.details_on_create = false;
+  gantt.config.drag_progress = false; 
+  gantt.config.grid_width = 540;
+  gantt.config.grid_resize = true;
+  gantt.config.autosize = "y";
+  gantt.config.order_branch = true;
+  gantt.config.order_branch_free = true;
+  gantt.config.show_errors = false;
+  gantt.config.time_step = 12 * 60; // 12 hours
+  gantt.config.duration_unit = "day";
+  gantt.config.duration_step = 1;
+  gantt.config.round_dnd_dates = false; 
+
+  gantt.config.scales = [
+      {unit: "day", step: 1, format: function(date){
+          const diff = Math.floor((date - gantt.config.start_date) / (1000 * 60 * 60 * 24)) + 1;
+          return "Day " + diff;
+      }}
+  ];
+  
+  gantt.config.columns = [
+      {name: "drag", label: "", width: 34, align: "center", template: function(task){
+          return `<div class="gantt_custom_flex_cell text-slate-600 cursor-grab hover:text-slate-300 transition-colors" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></div>`;
+      }},
+      {name: "text", label: "Line Item / Activity", width: '*', template: function(task){
+          const safeText = task.text ? task.text.replace(/"/g, '&quot;') : '';
+          return `<input type="text" class="bg-transparent text-white outline-none w-full font-medium" value="${safeText}" onchange="updateGridText('${task.id}', this.value)" onclick="event.stopPropagation();">`;
+      }},
+      {name: "hours", label: "Est. Hrs", align: "center", width: 80, template: function(task){
+          return `<div class="gantt_custom_flex_cell"><div class="bg-slate-900/80 border border-slate-700/80 rounded" style="width:55px; padding: 2px;" onclick="event.stopPropagation();">
+              <input type="number" class="ob-grid-input" value="${task.hours || 0}" min="4" step="4" onchange="updateGridHours('${task.id}', this.value)">
+          </div></div>`;
+      }},
+      {name: "cost", label: "Est. Cost", align: "center", width: 90, template: function(task){
+          const cost = (task.hours || 0) * ob_hourlyRate;
+          return `<div class="gantt_custom_flex_cell text-emerald-400 text-xs font-mono font-semibold">$${cost.toLocaleString('en-US')}</div>`;
+      }},
+      {name: "duration", label: "Vis. Days", align: "center", width: 65, template: function(task){
+          return `<div class="gantt_custom_flex_cell text-slate-400 text-xs">${task.duration}</div>`;
+      }},
+      {name: "delete", label: "", width: 40, align: "center", template: function(task){
+          return `<div class="gantt_custom_flex_cell text-slate-500 hover:text-red-400 cursor-pointer transition-colors" onclick="event.stopPropagation(); deleteObTask('${task.id}')" title="Delete Task"><i class="fas fa-trash-alt"></i></div>`;
+      }}
+  ];
+  
+  // Connect structural edits to the auto-saver silently
+  gantt.attachEvent("onRowDragEnd", function(id, target) { saveActiveState(); });
+  gantt.attachEvent("onAfterLinkAdd", function(id, item){ saveActiveState(); });
+  gantt.attachEvent("onAfterLinkDelete", function(id, item){ saveActiveState(); });
+  
+  gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
+      const task = gantt.getTask(id);
+      if (mode === "resize") {
+          const days = Math.max(0.5, Math.round(task.duration * 2) / 2);
+          task.duration = days;
+          task.end_date = gantt.calculateEndDate({start_date: task.start_date, duration: task.duration});
+          if (ob_linkDuration) {
+              let newHours = days * 8;
+              newHours = Math.ceil(newHours / 4) * 4; 
+              if (newHours === 0) newHours = 4;
+              task.hours = newHours;
+          }
+          gantt.updateTask(id);
+      }
+      updateOnboardingFinancials();
+      saveActiveState();
+  });
+  
+  gantt.templates.tooltip_text = function(start, end, task){
+      return `<div class="mb-2"><b class="text-blue-400">${task.text}</b></div>
+              <div class="text-xs text-slate-400 flex justify-between gap-4 mb-1"><span>Billed Effort:</span> <b class="text-white font-mono">${task.hours} Hrs</b></div>
+              <div class="text-xs text-slate-400 flex justify-between gap-4"><span>Visual Calendar:</span> <b class="text-white font-mono">${task.duration} Days</b></div>`;
+  };
+
+  gantt.init("gantt_here");
+  ob_gantt_initialized = true;
 }
 
 // ==========================================
@@ -2258,7 +2220,6 @@ function toggleExportMenu(menuId = 'export-menu') {
   document.getElementById(menuId).classList.toggle('show');
 }
 
-// Close export menu if clicked outside
 document.addEventListener('click', function(event) {
   const optMenu = document.getElementById('export-menu');
   const optBtn = document.getElementById('export-btn');
@@ -2279,8 +2240,6 @@ document.addEventListener('click', function(event) {
 function openProposalModal() {
   document.getElementById('export-menu').classList.remove('show');
   document.getElementById('export-menu-onb').classList.remove('show');
-  
-  // Set default date to today
   document.getElementById('prop-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('proposal-modal-root').classList.add('open');
 }
@@ -2300,27 +2259,22 @@ function buildAndDownloadPDF() {
   const includeOnb = document.getElementById('prop-toggle-onb').checked;
   const includeFin = document.getElementById('prop-toggle-fin').checked;
 
-  // Gather Headless Data
   const infraData = generateHeadlessAnalysis();
   
-  // Gather Financials (with margin baked in)
-  const totalHours = ob_tasks.reduce((sum, t) => sum + t.hours, 0);
+  // Update and retrieve active Gantt financial state
+  saveActiveState();
+  const activeState = tierStates[currentScope] || { data: [], links: [] };
+  const totalHours = activeState.data.reduce((sum, t) => sum + (t.hours || 0), 0);
   const internalCost = totalHours * ob_hourlyRate;
   const marginMultiplier = 1 - (ob_margin / 100);
   const customerPrice = marginMultiplier > 0 ? internalCost / marginMultiplier : internalCost;
   
-  let totalDays = 0;
+  let maxDate = gantt.config.start_date;
   if (ob_gantt_initialized) {
-     let maxDate = gantt.config.start_date;
      gantt.eachTask(function(task) { if (task.end_date > maxDate) maxDate = task.end_date; });
-     totalDays = Math.max(0, Math.round((maxDate - gantt.config.start_date) / (1000 * 60 * 60 * 24)));
-  } else {
-     let maxEndDay = 0;
-     ob_tasks.forEach(t => { if (t.computed_end_days > maxEndDay) maxEndDay = t.computed_end_days; });
-     totalDays = Math.ceil(maxEndDay);
   }
+  const totalDays = ob_gantt_initialized ? Math.max(0, Math.round((maxDate - gantt.config.start_date) / (1000 * 60 * 60 * 24))) : 0;
 
-  // Construct HTML for Print
   let html = `
     <div class="pdf-header">
       <h1 class="pdf-title">${projName}</h1>
@@ -2336,7 +2290,6 @@ function buildAndDownloadPDF() {
 
   let sectionCounter = 2;
 
-  // Infrastructure Block
   if (includeInfra) {
     html += `
       <h2 class="pdf-section-title">${sectionCounter++}. Global Infrastructure Strategy</h2>
@@ -2375,7 +2328,6 @@ function buildAndDownloadPDF() {
     html += `</tbody></table>`;
   }
 
-  // Onboarding Block
   if (includeOnb) {
     html += `
       <h2 class="pdf-section-title">${sectionCounter++}. Implementation & Onboarding Timeline</h2>
@@ -2392,16 +2344,19 @@ function buildAndDownloadPDF() {
         <tbody>
     `;
     
-    ob_tasks.forEach(t => {
-        const dur = t.manual_duration_days !== undefined ? t.manual_duration_days : (t.computed_end_days - t.computed_start_days);
-        const deps = t.deps ? t.deps : '<em>None</em>';
-        html += `<tr><td><strong>${t.name}</strong></td><td>${dur} Days</td><td>${deps}</td></tr>`;
+    activeState.data.forEach(t => {
+        const depsLinks = activeState.links.filter(l => String(l.target) === String(t.id));
+        let deps = depsLinks.map(l => {
+            const sourceTask = activeState.data.find(st => String(st.id) === String(l.source));
+            return sourceTask ? sourceTask.text : l.source;
+        }).join(', ');
+        if (!deps) deps = '<em>None</em>';
+        html += `<tr><td><strong>${t.text}</strong></td><td>${t.duration} Days</td><td>${deps}</td></tr>`;
     });
     
     html += `</tbody></table>`;
   }
 
-  // Financials Block
   if (includeFin) {
     html += `
       <h2 class="pdf-section-title">${sectionCounter++}. Financial Investment</h2>
@@ -2428,7 +2383,6 @@ function buildAndDownloadPDF() {
 
   showToast("Rendering Document...");
   
-  // Format filename cleanly
   const safeClientName = clientName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
   
   const opt = {
@@ -2439,7 +2393,6 @@ function buildAndDownloadPDF() {
       jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
   };
 
-  // Wrap the content with self-contained styles so the html2pdf worker can render it perfectly without DOM dependencies
   const finalHtml = `
     <div style="background:#fff; color:#0f172a; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height:1.6; padding: 20px;">
       <style>
@@ -2470,11 +2423,10 @@ function buildAndDownloadPDF() {
 function exportSessionJSON() {
   document.getElementById('export-menu').classList.remove('show');
   
-  // Run a headless analysis to ensure results are perfectly up-to-date
   const results = generateHeadlessAnalysis();
   
   const sessionData = {
-    version: "1.0",
+    version: "2.0",
     selectedFootprint,
     cellCosts,
     baselineMode,
@@ -2501,19 +2453,15 @@ function exportSessionJSON() {
 
 function generateHeadlessAnalysis() {
   const covered = [], uncovered = [];
-  
   customers.forEach((c, i) => {
     const sla = slaMode === 'global' ? globalSLA : (perCustomerSLA[i] !== undefined ? perCustomerSLA[i] : 150);
-    let isCovered = false;
-    let bestServing = null;
+    let isCovered = false, bestServing = null;
     
     for (let cellIdx of selectedFootprint) {
       const b = getCustomerLatency(cellIdx, c, true);
       if (b.total <= sla) {
         isCovered = true;
-        if (!bestServing || b.total < bestServing.breakdown.total) {
-          bestServing = { cellIdx, breakdown: b };
-        }
+        if (!bestServing || b.total < bestServing.breakdown.total) bestServing = { cellIdx, breakdown: b };
       }
     }
     
@@ -2524,9 +2472,7 @@ function generateHeadlessAnalysis() {
       const cellsToCheck = selectedFootprint.length > 0 ? selectedFootprint : [findNearestRegionIdx(c.lat, c.lng)];
       for (let cellIdx of cellsToCheck) {
         const b = getCustomerLatency(cellIdx, c, true);
-        if (!bestFrom || b.total < bestFrom.breakdown.total) {
-          bestFrom = { cellIdx, breakdown: b };
-        }
+        if (!bestFrom || b.total < bestFrom.breakdown.total) bestFrom = { cellIdx, breakdown: b };
       }
       uncovered.push({ ...c, sla, idx: i, bestFrom });
     }
@@ -2538,10 +2484,7 @@ function generateHeadlessAnalysis() {
   const usedCells = new Set();
   
   while (remainingSet.size > 0) {
-    let bestCellIdx = -1;
-    let bestCoveredList = [];
-    let minCostPerCust = Infinity;
-    let maxCountTieBreaker = 0;
+    let bestCellIdx = -1, bestCoveredList = [], minCostPerCust = Infinity, maxCountTieBreaker = 0;
     
     for (let ci = 0; ci < regions.length; ci++) {
       if (usedCells.has(ci)) continue;
@@ -2550,9 +2493,7 @@ function generateHeadlessAnalysis() {
       for (const cust of remainingCustomers) {
         if (!remainingSet.has(cust.idx)) continue;
         const b = getCustomerLatency(ci, cust, true);
-        if (b.total <= cust.sla) {
-          coversNow.push({ ...cust, breakdown: b });
-        }
+        if (b.total <= cust.sla) coversNow.push({ ...cust, breakdown: b });
       }
       
       if (coversNow.length === 0) continue;
@@ -2572,22 +2513,15 @@ function generateHeadlessAnalysis() {
     
     recommendations.push({ cellIdx: bestCellIdx, cellName: regions[bestCellIdx].name, cellCode: regions[bestCellIdx].code, covers: bestCoveredList });
     usedCells.add(bestCellIdx);
-    for (const cust of bestCoveredList) {
-      remainingSet.delete(cust.idx);
-    }
+    for (const cust of bestCoveredList) remainingSet.delete(cust.idx);
   }
   
   const totalOpex = recommendations.reduce((sum, r) => sum + estimateRegionCost(r.cellIdx), 0);
-  
   const coverageMap = new Map();
-  recommendations.forEach(rec => { 
-    rec.covers.forEach(c => coverageMap.set(c.idx, { rec, breakdown: c.breakdown }));
-  });
+  recommendations.forEach(rec => { rec.covers.forEach(c => coverageMap.set(c.idx, { rec, breakdown: c.breakdown })); });
   
   const impossible = [];
-  uncovered.forEach(c => {
-    if (!coverageMap.has(c.idx)) impossible.push(c);
-  });
+  uncovered.forEach(c => { if (!coverageMap.has(c.idx)) impossible.push(c); });
 
   return {
     summary: {
@@ -2598,27 +2532,14 @@ function generateHeadlessAnalysis() {
       estimatedNewMonthlyOpex: totalOpex
     },
     alreadyCovered: covered.map(c => ({
-      name: c.name,
-      slaThreshold: c.sla,
-      servedByCell: regions[c.serving.cellIdx].code,
-      actualLatency: c.serving.breakdown.total
+      name: c.name, slaThreshold: c.sla, servedByCell: regions[c.serving.cellIdx].code, actualLatency: c.serving.breakdown.total
     })),
     recommendedNewCells: recommendations.map(r => ({
-      cellCode: r.cellCode,
-      cellName: r.cellName,
-      estimatedMonthlyCost: estimateRegionCost(r.cellIdx),
-      endpointsCoveredCount: r.covers.length,
-      endpointsCovered: r.covers.map(c => ({
-        name: c.name,
-        slaThreshold: c.sla,
-        actualLatency: c.breakdown.total
+      cellCode: r.cellCode, cellName: r.cellName, estimatedMonthlyCost: estimateRegionCost(r.cellIdx), endpointsCoveredCount: r.covers.length, endpointsCovered: r.covers.map(c => ({
+        name: c.name, slaThreshold: c.sla, actualLatency: c.breakdown.total
       }))
     })),
-    impossibleSLAs: impossible.map(c => ({
-      name: c.name,
-      slaThreshold: c.sla,
-      bestPossibleLatency: c.bestFrom.breakdown.total
-    }))
+    impossibleSLAs: impossible.map(c => ({ name: c.name, slaThreshold: c.sla, bestPossibleLatency: c.bestFrom.breakdown.total }))
   };
 }
 
@@ -2700,13 +2621,14 @@ function exportSessionCSV() {
 function exportOnboardingJSON() {
   document.getElementById('export-menu-onb').classList.remove('show');
   
+  saveActiveState();
   const sessionData = {
-    version: "1.0",
+    version: "2.0",
     ob_hourlyRate,
     ob_margin,
     currentScope,
     ob_linkDuration,
-    ob_tasks
+    tierStates
   };
   
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sessionData, null, 2));
@@ -2722,31 +2644,41 @@ function exportOnboardingJSON() {
 
 function exportOnboardingCSV() {
   document.getElementById('export-menu-onb').classList.remove('show');
+  saveActiveState();
   
   let csvContent = "data:text/csv;charset=utf-8,";
   
-  const totalHours = ob_tasks.reduce((sum, t) => sum + t.hours, 0);
+  const activeState = tierStates[currentScope] || { data: [] };
+  const totalHours = activeState.data.reduce((sum, t) => sum + (t.hours || 0), 0);
   const internalCost = totalHours * ob_hourlyRate;
   const marginMultiplier = 1 - (ob_margin / 100);
   const customerPrice = marginMultiplier > 0 ? internalCost / marginMultiplier : internalCost;
   
-  csvContent += "--- FINANCIAL SUMMARY ---\n";
+  csvContent += "--- FINANCIAL SUMMARY (ACTIVE TIER) ---\n";
   csvContent += `Blended Hourly Rate,$${ob_hourlyRate}\n`;
   csvContent += `Target Margin,${ob_margin}%\n`;
   csvContent += `Total Project Hours,${totalHours}\n`;
   csvContent += `Total Internal Cost,$${internalCost.toFixed(2)}\n`;
   csvContent += `Final Customer Price,$${customerPrice.toFixed(2)}\n\n`;
   
-  csvContent += "--- PROJECT SCHEDULE ---\n";
-  csvContent += "Task Name,Estimated Hours,Visual Days,Start Day,End Day,Dependencies\n";
+  csvContent += "--- MULTI-TIER PROJECT SCHEDULE ---\n";
+  csvContent += "Tier,Task Name,Estimated Hours,Visual Days,Dependencies\n";
   
-  ob_tasks.forEach(t => {
-    const startDay = t.computed_start_days + 1;
-    const endDay = t.computed_end_days + 1;
-    const deps = t.deps ? `"${t.deps}"` : "None";
-    const visualDays = t.manual_duration_days !== undefined ? t.manual_duration_days : (t.computed_end_days - t.computed_start_days);
-    csvContent += `"${t.name}",${t.hours},${visualDays},Day ${startDay},Day ${endDay},${deps}\n`;
-  });
+  for (let i = 1; i <= 3; i++) {
+      let state = tierStates[i];
+      if (!state) state = generateGanttStateFromTasks(getDefaultTemplate(i));
+      
+      state.data.forEach(t => {
+          const depsLinks = state.links.filter(l => String(l.target) === String(t.id));
+          const deps = depsLinks.map(l => {
+              const sourceTask = state.data.find(st => String(st.id) === String(l.source));
+              return sourceTask ? sourceTask.text : l.source;
+          }).join(', ');
+          const depsStr = deps ? `"${deps}"` : "None";
+          const safeText = t.text ? t.text.replace(/"/g, '""') : "Task";
+          csvContent += `Tier ${i},"${safeText}",${t.hours || 0},${t.duration},${depsStr}\n`;
+      });
+  }
   
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
@@ -2756,7 +2688,7 @@ function exportOnboardingCSV() {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  showToast("Onboarding quote exported successfully!");
+  showToast("Onboarding multi-tier CSV exported successfully!");
 }
 
 function handleOnboardingImport(event) {
@@ -2770,18 +2702,28 @@ function handleOnboardingImport(event) {
       
       if (data.ob_hourlyRate !== undefined) ob_hourlyRate = data.ob_hourlyRate;
       if (data.ob_margin !== undefined) ob_margin = data.ob_margin;
-      if (data.currentScope !== undefined) currentScope = data.currentScope;
-      else if (data.ob_newCell !== undefined) currentScope = data.ob_newCell ? 1 : 2; // backward compatibility for old JSONs
       if (data.ob_linkDuration !== undefined) ob_linkDuration = data.ob_linkDuration;
-      if (data.ob_tasks !== undefined) ob_tasks = data.ob_tasks;
       
       document.getElementById('ob-rate').value = ob_hourlyRate;
       document.getElementById('ob-margin').value = ob_margin;
-      document.getElementById('deployment-scope').value = currentScope;
       document.getElementById('ob-link-duration').checked = ob_linkDuration;
       
-      recalculateAndRenderGantt();
-      showToast("Onboarding session imported successfully!");
+      // Load Master Memory Cache
+      if (data.tierStates) {
+          tierStates = data.tierStates;
+      } else if (data.ob_tasks) {
+          // Backwards compatibility for v1.0 JSONs: Convert to Tier 1
+          const state = generateGanttStateFromTasks(data.ob_tasks);
+          tierStates = { 1: state, 2: null, 3: null }; 
+      }
+
+      currentScope = data.currentScope || (data.ob_newCell !== undefined ? (data.ob_newCell ? 1 : 2) : 1);
+      document.getElementById('deployment-scope').value = currentScope;
+      
+      if (!ob_gantt_initialized) initDhtmlxGantt();
+      
+      renderState(tierStates[currentScope] || generateGanttStateFromTasks(getDefaultTemplate(currentScope)));
+      showToast("Multi-Tier Session successfully restored!");
     } catch (err) {
       console.error("Import error:", err);
       showToast("Failed to parse session file. Invalid JSON.", true);
@@ -2840,14 +2782,11 @@ function handleImport(event) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Initial Optimizer setup
   renderFootprintList();
   renderFpPills();
   renderCostCellsList();
   updateSpecificDropdown();
   updateBaselineSummary();
-
-  // Show Gateway on load
   showModule('gateway');
 });
 </script>
