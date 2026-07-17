@@ -462,7 +462,15 @@ input[type=number].ob-grid-input{background:transparent;color:#93c5fd;font-famil
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="glass rounded-2xl overflow-hidden">
           <div class="px-5 py-3 border-b border-slate-700/50 flex items-center justify-between flex-wrap gap-2"><h3 class="font-semibold text-white">Endpoint Map</h3><div class="flex gap-3 text-xs flex-wrap"><div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Existing</div><div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Endpoint</div></div></div>
-          <div class="h-[300px] sm:h-[420px] relative"><div id="cust-map" class="w-full h-full"></div><button class="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] btn-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2" id="click-place-btn" onclick="toggleClickPlace()"><i class="fas fa-map-marker-alt"></i> <span id="click-place-text">Click to Place on Map</span></button></div>
+          <div class="h-[300px] sm:h-[420px] relative">
+            <div id="cust-map" class="w-full h-full"></div>
+            <!-- FIXED: Added full-width wrapper to prevent jumping on hover -->
+            <div class="absolute bottom-4 w-full flex justify-center z-[1000] pointer-events-none">
+              <button class="btn-primary px-4 py-2 rounded-lg text-sm flex items-center gap-2 pointer-events-auto shadow-lg" id="click-place-btn" onclick="toggleClickPlace()">
+                <i class="fas fa-map-marker-alt"></i> <span id="click-place-text">Click to Place on Map</span>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="space-y-4">
           <div class="glass rounded-2xl p-5">
@@ -618,7 +626,8 @@ input[type=number].ob-grid-input{background:transparent;color:#93c5fd;font-famil
               </div>
           </div>
           <div class="flex items-center gap-2">
-            <input type="checkbox" id="ob-link-duration" class="w-4 h-4 rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-blue-500" checked onchange="toggleLinkDuration()">
+            <!-- FIXED: Unchecked by default -->
+            <input type="checkbox" id="ob-link-duration" class="w-4 h-4 rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-blue-500" onchange="toggleLinkDuration()">
             <label for="ob-link-duration" class="text-xs font-semibold text-blue-300">Link Gantt Duration to Cost</label>
           </div>
         </div>
@@ -885,15 +894,19 @@ function showModule(moduleName) {
 // ==========================================
 let ob_hourlyRate = 100;
 let ob_margin = 20;
-let ob_linkDuration = true;
+// FIXED: Unchecked by default
+let ob_linkDuration = false;
 let ob_gantt_initialized = false;
 let currentScope = 1;
 
 // The multi-tier memory cache
 let tierStates = { 1: null, 2: null, 3: null };
 
-// We use an arbitrary start date to anchor the "Day 1, Day 2" math
-const PROJECT_START = new Date(2025, 0, 1); 
+// FIXED: Establishing Day 0 Anchor. 
+// The timeline will start drawing at TIMELINE_START.
+// Tasks will mathematically snap to start at PROJECT_START (Day 1).
+const TIMELINE_START = new Date(2025, 0, 1); // Renders as empty Day 0
+const PROJECT_START = new Date(2025, 0, 2);  // First valid day for tasks
 
 function formatGanttDate(date) {
   if (!date) return "";
@@ -906,6 +919,20 @@ function formatGanttDate(date) {
 
 function toggleLinkDuration() {
   ob_linkDuration = document.getElementById('ob-link-duration').checked;
+  
+  // FIXED: Sync Logic. Snaps Gantt bars to Estimated Hours if user re-checks the box
+  if (ob_linkDuration && ob_gantt_initialized) {
+      gantt.eachTask(function(task) {
+          const reqDays = Math.max(0.5, Math.ceil((task.hours || 4) / 8));
+          task.duration = reqDays;
+          task.end_date = gantt.calculateEndDate({start_date: task.start_date, duration: task.duration});
+          gantt.updateTask(task.id);
+      });
+      gantt.render();
+      updateOnboardingFinancials();
+      saveActiveState();
+      showToast("Timeline synced to Estimated Hours!");
+  }
 }
 
 function saveActiveState() {
@@ -983,9 +1010,10 @@ function generateGanttStateFromTasks(tasks) {
       changed = false;
       loops++;
       tasks.forEach(t => {
-          let maxDepEnd = 0;
+          let maxDepEnd = 1; // FIXED: Default snapping to Day 1, not Day 0
           if (t.deps && t.deps.trim() !== '') {
               const depIds = t.deps.split(',').map(s => s.trim());
+              maxDepEnd = 1;
               depIds.forEach(did => {
                   if (taskDict[did] && taskDict[did].computed_end_days > maxDepEnd) {
                       maxDepEnd = taskDict[did].computed_end_days;
@@ -1012,11 +1040,11 @@ function generateGanttStateFromTasks(tasks) {
       // Special logic: Project Coordination stretches the whole project by default
       if (t.name === 'Project Coordination') {
          const maxEnd = Math.max(...tasks.map(tx => tx.name === 'Project Coordination' ? 0 : tx.computed_end_days));
-         t.computed_start_days = 0;
-         t.computed_end_days = maxEnd > 0 ? maxEnd : (t.hours / 8);
+         t.computed_start_days = 1; // FIXED: Start on Day 1
+         t.computed_end_days = maxEnd > 1 ? maxEnd : (t.hours / 8) + 1;
       }
       
-      const start = new Date(PROJECT_START.getTime() + t.computed_start_days * 24 * 3600 * 1000);
+      const start = new Date(PROJECT_START.getTime() + (t.computed_start_days - 1) * 24 * 3600 * 1000);
       let duration = t.computed_end_days - t.computed_start_days;
       if (duration <= 0) duration = 0.5;
 
@@ -1080,7 +1108,7 @@ window.addObTask = function() {
       text: 'New Task',
       hours: 8,
       duration: 1,
-      start_date: PROJECT_START
+      start_date: PROJECT_START // Starts on Day 1
   });
   updateOnboardingFinancials();
   saveActiveState();
@@ -1133,7 +1161,9 @@ function updateOnboardingFinancials() {
   const internalCost = totalHours * ob_hourlyRate;
   const marginMultiplier = 1 - (ob_margin / 100);
   const customerPrice = marginMultiplier > 0 ? internalCost / marginMultiplier : internalCost;
-  const totalDays = ob_gantt_initialized ? Math.max(0, Math.round((maxDate - gantt.config.start_date) / (1000 * 60 * 60 * 24))) : 0;
+  
+  // Math adjusted to compute from PROJECT_START (Day 1) instead of TIMELINE_START
+  const totalDays = ob_gantt_initialized ? Math.max(0, Math.round((maxDate - PROJECT_START) / (1000 * 60 * 60 * 24))) : 0;
 
   document.getElementById('ob-total-days').textContent = `${totalDays} Days`;
   document.getElementById('ob-total-hours').textContent = `${totalHours} total estimated hours`;
@@ -1145,7 +1175,9 @@ function initDhtmlxGantt() {
   if (ob_gantt_initialized) return;
 
   gantt.config.date_format = "%Y-%m-%d";
-  gantt.config.start_date = PROJECT_START;
+  gantt.config.start_date = TIMELINE_START; // This starts drawing at Day 0
+  gantt.config.end_date = new Date(TIMELINE_START.getTime() + 60 * 24 * 3600 * 1000); // 60 days of visual runway
+  
   gantt.config.details_on_dblclick = false; 
   gantt.config.details_on_create = false;
   gantt.config.drag_progress = false; 
@@ -1159,12 +1191,18 @@ function initDhtmlxGantt() {
   gantt.config.duration_unit = "day";
   gantt.config.duration_step = 1;
   gantt.config.round_dnd_dates = false; 
+  
+  gantt.config.work_time = false;
+  gantt.config.skip_off_time = false;
 
   gantt.config.scales = [
-      {unit: "day", step: 1, format: function(date){
-          const diff = Math.floor((date - gantt.config.start_date) / (1000 * 60 * 60 * 24)) + 1;
-          return "Day " + diff;
-      }}
+      {
+          unit: "day", step: 1, format: function(date){
+              // Calculate difference from TIMELINE_START (which is our Day 0 anchor)
+              const diff = Math.floor((date - TIMELINE_START) / (1000 * 60 * 60 * 24));
+              return "Day " + diff;
+          }
+      }
   ];
   
   gantt.config.columns = [
@@ -1302,7 +1340,7 @@ let cellCosts = {};
 let baselineMode = 'blended';
 let specificBaselineIdx = null;
 let fpMap, custMap, dashMap;
-let fpMapMarkers = [], custMapMarkers = [], dashMapMarkers = [];
+let fpMapMarkers = [], custMapMarkers = [], availableCityMarkers = [], dashMapMarkers = [];
 
 const MAP_BOUNDS = L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180));
 const TIER_TAX = { 1: 5, 2: 20, 3: 40, 4: 60 };
@@ -1812,13 +1850,14 @@ function toggleClickPlace() {
   
   if (clickPlaceMode) {
     btn.classList.add('accent-glow');
-    text.textContent = 'Click on map to place...';
+    text.textContent = 'Cancel Placement';
     custMap.getContainer().style.cursor = 'crosshair';
   } else {
     btn.classList.remove('accent-glow');
     text.textContent = 'Click to Place on Map';
     custMap.getContainer().style.cursor = '';
   }
+  updateCustMap();
 }
 
 function initCustMap() {
@@ -1834,23 +1873,22 @@ function initCustMap() {
     if (!clickPlaceMode) return;
     const lat = e.latlng.lat, lng = e.latlng.lng;
     let nearest = worldCities[0], minDist = Infinity;
+    let nearestIdx = 0;
     
-    worldCities.forEach(c => {
+    worldCities.forEach((c, idx) => {
       const d = haversine(c.lat, c.lng, lat, lng);
       if (d < minDist) {
         minDist = d;
         nearest = c;
+        nearestIdx = idx;
       }
     });
     
     if (!customers.some(k => k.name === nearest.name)) {
-      customers.push({ name: nearest.name, lat: nearest.lat, lng: nearest.lng, type: 'city', tier: nearest.tier });
-      renderCustList();
-      renderCustSourceList();
+      addCustomerCity(nearestIdx);
     }
     
     toggleClickPlace();
-    updateCustMap();
   });
   
   updateCustMap();
@@ -1859,6 +1897,9 @@ function initCustMap() {
 function updateCustMap() {
   custMapMarkers.forEach(m => custMap.removeLayer(m));
   custMapMarkers = [];
+  
+  availableCityMarkers.forEach(m => custMap.removeLayer(m));
+  availableCityMarkers = [];
   
   selectedFootprint.forEach(idx => {
     const r = regions[idx];
@@ -1872,6 +1913,22 @@ function updateCustMap() {
     marker.bindPopup(`<b>${c.name}</b><br><span class="text-xs text-slate-400">Endpoint #${i + 1}</span>`);
     custMapMarkers.push(marker);
   });
+
+  if (clickPlaceMode) {
+    worldCities.forEach(c => {
+      if (!customers.some(k => k.name === c.name)) {
+        const marker = L.circleMarker([c.lat, c.lng], {
+          radius: 4,
+          color: 'rgba(255,255,255,0.6)',
+          fillColor: '#94a3b8',
+          fillOpacity: 0.5,
+          weight: 1,
+          interactive: false
+        }).addTo(custMap);
+        availableCityMarkers.push(marker);
+      }
+    });
+  }
 }
 
 function setRealisticMode(mode) {
@@ -2273,7 +2330,7 @@ function buildAndDownloadPDF() {
   if (ob_gantt_initialized) {
      gantt.eachTask(function(task) { if (task.end_date > maxDate) maxDate = task.end_date; });
   }
-  const totalDays = ob_gantt_initialized ? Math.max(0, Math.round((maxDate - gantt.config.start_date) / (1000 * 60 * 60 * 24))) : 0;
+  const totalDays = ob_gantt_initialized ? Math.max(0, Math.round((maxDate - PROJECT_START) / (1000 * 60 * 60 * 24))) : 0;
 
   let html = `
     <div class="pdf-header">
